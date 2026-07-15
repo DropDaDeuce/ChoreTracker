@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────
+# Personal / household data — NEVER commit to this public repo
+# ─────────────────────────────────────────────────────────────
+# The app's runtime data lives here: the SQLite database (family
+# names, PINs, allowance balances) and uploaded proof photos.
+data/
+uploads/
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Secrets & environment config (session key, paths, origin)
+.env
+.env.*
+!.env.example
+
+# Backups / exports that may contain real data
+*.bak
+backups/
+*.csv
+
+# ─────────────────────────────────────────────────────────────
+# Dependencies & build output
+# ─────────────────────────────────────────────────────────────
+node_modules/
+build/
+dist/
+.svelte-kit/
+.vite/
+package/
+
+# ─────────────────────────────────────────────────────────────
+# Test / coverage / logs
+# ─────────────────────────────────────────────────────────────
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# ─────────────────────────────────────────────────────────────
+# OS / editor cruft
+# ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
