@@ -1,0 +1,17 @@
+node_modules
+build
+.svelte-kit
+data
+uploads
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+!.env.example
+.git
+.vscode
+docs
+coverage
+test-results
+playwright-report

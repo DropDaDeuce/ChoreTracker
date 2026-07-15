@@ -1,0 +1,40 @@
+{
+	"name": "choretracker",
+	"description": "Self-hosted household chore tracker with rotation and kids' allowance",
+	"license": "MIT",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"db:studio": "drizzle-kit studio",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"dependencies": {
+		"better-sqlite3": "^12.4.1",
+		"drizzle-orm": "^0.44.2"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-node": "^5.4.0",
+		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@tailwindcss/vite": "^4.1.11",
+		"@types/better-sqlite3": "^7.6.13",
+		"@types/node": "^24.0.0",
+		"drizzle-kit": "^0.31.4",
+		"svelte": "^5.56.1",
+		"svelte-check": "^4.6.0",
+		"tailwindcss": "^4.1.11",
+		"typescript": "^6.0.3",
+		"vite": "^8.0.16",
+		"vitest": "^3.2.4"
+	}
+}

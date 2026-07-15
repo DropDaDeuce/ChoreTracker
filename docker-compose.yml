@@ -1,0 +1,15 @@
+services:
+  choretracker:
+    build: .
+    ports:
+      - '3000:3000'
+    volumes:
+      # SQLite database + uploaded photos persist here. Backup = copy ./data
+      - ./data:/app/data
+    environment:
+      - DATABASE_PATH=/app/data/chores.db
+      # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+      - SESSION_SECRET=change-me
+      # Set to the URL your family actually uses (hostname or LAN IP).
+      - ORIGIN=http://home-server.local:3000
+    restart: unless-stopped
