@@ -2,7 +2,11 @@ import { eq, sql } from 'drizzle-orm';
 import { allowanceLedger, choreInstances, chores, reminders, users } from './db/schema';
 import type { DB } from './db/type';
 import { computePayoutCents, payoutReason } from './payout';
-import { getSettingInt, REMINDER_PENALTY_PERCENT_KEY } from './settings';
+import {
+	getSettingInt,
+	REMINDER_PENALTY_PERCENT_KEY,
+	UNDO_WINDOW_MINUTES_KEY
+} from './settings';
 
 /**
  * Instance lifecycle: pending → done → verified | rejected.
@@ -45,6 +49,51 @@ export function markDone(db: DB, instanceId: number, actor: { id: number; role: 
 			finalizeVerification(tx, instanceId, actor.id);
 		}
 	});
+}
+
+/**
+ * Undo a mark-done.
+ * - `done` (not yet verified): revert to pending any time.
+ * - auto-verified (chore needs no verification): revert within the undo
+ *   window, unwinding the frozen payout and its ledger earning.
+ * - adult-verified: no undo — adults reject instead.
+ */
+export function undoMarkDone(db: DB, instanceId: number, actor: { id: number; role: string }): void {
+	const { instance, chore } = getInstanceWithChore(db, instanceId);
+	if (actor.id !== instance.assigneeId && actor.id !== instance.doneBy && actor.role !== 'adult') {
+		throw new InstanceActionError('Only the person who did it (or an adult) can undo.');
+	}
+
+	const revert = {
+		status: 'pending' as const,
+		doneAt: null,
+		doneBy: null,
+		verifiedAt: null,
+		verifiedBy: null,
+		payoutCents: null
+	};
+
+	if (instance.status === 'done') {
+		db.update(choreInstances).set(revert).where(eq(choreInstances.id, instanceId)).run();
+		return;
+	}
+
+	if (instance.status === 'verified' && !chore.requiresVerification) {
+		const windowMinutes = getSettingInt(db, UNDO_WINDOW_MINUTES_KEY, 15);
+		const verifiedAt = instance.verifiedAt?.getTime() ?? 0;
+		if (Date.now() - verifiedAt > windowMinutes * 60_000) {
+			throw new InstanceActionError('Too late to undo this one.');
+		}
+		db.transaction((tx) => {
+			// This unwinds a mistake, so the earning is deleted rather than
+			// compensated — the ledger should read as if it never happened.
+			tx.delete(allowanceLedger).where(eq(allowanceLedger.instanceId, instanceId)).run();
+			tx.update(choreInstances).set(revert).where(eq(choreInstances.id, instanceId)).run();
+		});
+		return;
+	}
+
+	throw new InstanceActionError("This chore can't be undone — ask an adult to reject it.");
 }
 
 /** Adult nudges someone about an open/unverified chore; reduces the payout. */

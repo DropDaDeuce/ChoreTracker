@@ -21,7 +21,7 @@
 					href="/earnings"
 					class="rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-800"
 				>
-					💰 {formatCents(data.balance)}
+					💰 {formatCents(data.balance, data.currency)}
 				</a>
 			{/if}
 			{#if data.verifyQueueCount > 0}
@@ -57,7 +57,9 @@
 								{:else}
 									<span>Due today</span>
 								{/if}
-								{#if chore.allowanceCents > 0}<span>💰 {formatCents(chore.allowanceCents)}</span>{/if}
+								{#if chore.allowanceCents > 0}
+									<span>💰 {formatCents(chore.allowanceCents, data.currency)}</span>
+								{/if}
 								{#if chore.points > 0}<span>⭐ {chore.points}</span>{/if}
 								{#if instance.reminderCount > 0}
 									<span class="font-semibold text-amber-600">
@@ -91,6 +93,54 @@
 						<span class="text-amber-500">⏳</span>
 						<span class="flex-1 text-slate-700">{chore.title} ({instance.dueDate})</span>
 						<span class="text-xs text-slate-400">awaiting verification</span>
+						<form method="POST" action="?/undo" use:enhance>
+							<input type="hidden" name="instanceId" value={instance.id} />
+							<button class="text-xs font-medium text-slate-400 hover:text-slate-700">Undo</button>
+						</form>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
+	{#if data.completedToday.length > 0}
+		<section>
+			<h2 class="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">
+				Completed today
+			</h2>
+			<ul class="space-y-2">
+				{#each data.completedToday as { instance, chore, canUndo } (instance.id)}
+					<li class="flex items-center gap-3 rounded-xl bg-white/70 p-3 text-sm shadow-sm">
+						<span class="text-emerald-500">✅</span>
+						<span class="flex-1 text-slate-700">{chore.title}</span>
+						{#if (instance.payoutCents ?? 0) > 0}
+							<span class="text-xs font-semibold text-emerald-700">
+								+{formatCents(instance.payoutCents ?? 0, data.currency)}
+							</span>
+						{/if}
+						{#if canUndo}
+							<form method="POST" action="?/undo" use:enhance>
+								<input type="hidden" name="instanceId" value={instance.id} />
+								<button class="text-xs font-medium text-slate-400 hover:text-slate-700">Undo</button>
+							</form>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
+	{#if data.missed.length > 0}
+		<section>
+			<h2 class="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">
+				Missed recently
+			</h2>
+			<ul class="space-y-2">
+				{#each data.missed as { instance, chore } (instance.id)}
+					<li class="flex items-center gap-3 rounded-xl bg-red-50/70 p-3 text-sm">
+						<span>😿</span>
+						<span class="flex-1 text-slate-600">{chore.title}</span>
+						<span class="text-xs text-red-400">missed {instance.dueDate}</span>
 					</li>
 				{/each}
 			</ul>

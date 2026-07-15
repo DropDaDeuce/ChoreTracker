@@ -41,6 +41,7 @@
 		message={form?.message}
 		submitLabel="Save changes"
 		action="?/save"
+		currency={data.currency}
 		initial={{
 			title: data.chore.title,
 			description: data.chore.description,
@@ -53,7 +54,9 @@
 			points: data.chore.points,
 			allowanceDollars: data.chore.allowanceCents / 100,
 			requiresVerification: data.chore.requiresVerification,
-			assigneeId: data.assigneeId
+			graceDays: data.chore.graceDays,
+			assignmentType: data.chore.assignmentType,
+			assigneeIds: data.assigneeIds
 		}}
 	/>
 </main>

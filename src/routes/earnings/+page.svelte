@@ -42,13 +42,13 @@
 				</span>
 				<div class="flex-1">
 					<h2 class="font-semibold text-slate-800">{person.name}</h2>
-					<p class="text-2xl font-bold text-emerald-700">{formatCents(person.balance)}</p>
+					<p class="text-2xl font-bold text-emerald-700">{formatCents(person.balance, data.currency)}</p>
 				</div>
 				{#if data.isAdult && person.balance > 0}
 					<form method="POST" action="?/payout" use:enhance>
 						<input type="hidden" name="kidId" value={person.id} />
 						<button class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white">
-							Pay out {formatCents(person.balance)}
+							Pay out {formatCents(person.balance, data.currency)}
 						</button>
 					</form>
 				{/if}
@@ -68,7 +68,7 @@
 							<span
 								class="font-semibold {item.payoutCents === 0 ? 'text-slate-400' : 'text-emerald-700'}"
 							>
-								{formatCents(item.payoutCents ?? 0)}
+								{formatCents(item.payoutCents ?? 0, data.currency)}
 							</span>
 						</li>
 					{/each}
@@ -87,7 +87,7 @@
 								{#if entry.note}<span class="ml-1 text-xs text-slate-400">— {entry.note}</span>{/if}
 							</div>
 							<span class="font-semibold {entry.amountCents < 0 ? 'text-slate-500' : 'text-emerald-700'}">
-								{formatCents(entry.amountCents)}
+								{formatCents(entry.amountCents, data.currency)}
 							</span>
 						</li>
 					{/each}

@@ -9,12 +9,14 @@
 		data.user
 			? [
 					{ href: '/dashboard', label: 'Today' },
+					{ href: '/chores', label: 'My chores' },
 					{ href: '/earnings', label: 'Earnings' },
 					...(data.user.role === 'adult'
 						? [
 								{ href: '/verify', label: 'Verify' },
 								{ href: '/admin/chores', label: 'Chores' },
-								{ href: '/admin/users', label: 'People' }
+								{ href: '/admin/users', label: 'People' },
+								{ href: '/admin/settings', label: 'Settings' }
 							]
 						: [])
 				]

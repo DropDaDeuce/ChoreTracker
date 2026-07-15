@@ -51,9 +51,9 @@
 									{/if}
 									{#if chore.allowanceCents > 0}
 										<span class="font-semibold {payoutPreview < chore.allowanceCents ? 'text-amber-600' : 'text-emerald-700'}">
-											pays {formatCents(payoutPreview)}
+											pays {formatCents(payoutPreview, data.currency)}
 											{#if payoutPreview < chore.allowanceCents}
-												(of {formatCents(chore.allowanceCents)})
+												(of {formatCents(chore.allowanceCents, data.currency)})
 											{/if}
 										</span>
 									{/if}
@@ -110,7 +110,7 @@
 								{assignee.name} ·
 								{instance.dueDate < data.today ? `overdue (${instance.dueDate})` : 'due today'}
 								{#if instance.reminderCount > 0}
-									· 🔔 {instance.reminderCount} → pays {formatCents(payoutPreview)}
+									· 🔔 {instance.reminderCount} → pays {formatCents(payoutPreview, data.currency)}
 								{/if}
 							</span>
 						</div>

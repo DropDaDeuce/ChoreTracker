@@ -18,6 +18,7 @@
 		people={data.people}
 		message={form?.message}
 		submitLabel="Create chore"
+		currency={data.currency}
 		initial={{
 			title: '',
 			description: '',
@@ -30,7 +31,9 @@
 			points: 0,
 			allowanceDollars: 0,
 			requiresVerification: true,
-			assigneeId: data.people[0]?.id ?? null
+			graceDays: 0,
+			assignmentType: 'fixed',
+			assigneeIds: data.people[0] ? [data.people[0].id] : []
 		}}
 	/>
 </main>

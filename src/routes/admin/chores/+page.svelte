@@ -42,7 +42,9 @@
 						<p class="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-500">
 							<span>{describeRecurrence(chore)}</span>
 							<span>👤 {chore.assigneeNames.join(' → ') || 'unassigned'}</span>
-							{#if chore.allowanceCents > 0}<span>💰 {formatCents(chore.allowanceCents)}</span>{/if}
+							{#if chore.allowanceCents > 0}
+								<span>💰 {formatCents(chore.allowanceCents, data.currency)}</span>
+							{/if}
 							{#if chore.points > 0}<span>⭐ {chore.points}</span>{/if}
 							{#if !chore.requiresVerification}<span>auto-approves</span>{/if}
 						</p>

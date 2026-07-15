@@ -7,8 +7,10 @@ import {
 	markDone,
 	payOutBalance,
 	rejectInstance,
+	undoMarkDone,
 	verifyInstance
 } from '$lib/server/instances';
+import { setSetting, UNDO_WINDOW_MINUTES_KEY } from '$lib/server/settings';
 import { asc, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDb, insertUser } from './helpers/testDb';
@@ -127,6 +129,59 @@ describe('full allowance loop', () => {
 		expect(paid).toBe(200);
 		expect(balanceCents(db, kid.id)).toBe(0);
 		expect(() => payOutBalance(db, kid.id, adult.id)).toThrow(InstanceActionError);
+	});
+});
+
+describe('undoMarkDone', () => {
+	it('reverts a done-but-unverified chore to pending', () => {
+		const [first] = makeChore();
+		markDone(db, first.id, kid);
+
+		undoMarkDone(db, first.id, kid);
+
+		const reverted = reload(first.id);
+		expect(reverted.status).toBe('pending');
+		expect(reverted.doneAt).toBeNull();
+		expect(reverted.doneBy).toBeNull();
+	});
+
+	it('unwinds an auto-verified payout within the window', () => {
+		const [first] = makeChore({ requiresVerification: false });
+		markDone(db, first.id, kid);
+		expect(balanceCents(db, kid.id)).toBe(100);
+
+		undoMarkDone(db, first.id, kid);
+
+		expect(reload(first.id).status).toBe('pending');
+		expect(reload(first.id).payoutCents).toBeNull();
+		expect(balanceCents(db, kid.id)).toBe(0);
+		expect(db.select().from(allowanceLedger).all()).toHaveLength(0);
+	});
+
+	it('refuses once the undo window has passed', () => {
+		setSetting(db, UNDO_WINDOW_MINUTES_KEY, '0');
+		const [first] = makeChore({ requiresVerification: false });
+		markDone(db, first.id, kid);
+
+		expect(() => undoMarkDone(db, first.id, kid)).toThrow(InstanceActionError);
+		expect(balanceCents(db, kid.id)).toBe(100);
+	});
+
+	it('refuses to undo an adult-verified chore', () => {
+		const [first] = makeChore();
+		markDone(db, first.id, kid);
+		verifyInstance(db, first.id, adult.id);
+
+		expect(() => undoMarkDone(db, first.id, kid)).toThrow(InstanceActionError);
+	});
+
+	it('only the doer or an adult can undo', () => {
+		const otherKid = insertUser(db, 'Riley', 'kid');
+		const [first] = makeChore();
+		markDone(db, first.id, kid);
+
+		expect(() => undoMarkDone(db, first.id, otherKid)).toThrow(InstanceActionError);
+		expect(() => undoMarkDone(db, first.id, adult)).not.toThrow();
 	});
 });
 

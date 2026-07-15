@@ -17,12 +17,12 @@ export const load: PageServerLoad = ({ locals, params }) => {
 	requireAdult(locals);
 	const chore = getChore(Number(params.id));
 
-	const assignee = db
+	const pool = db
 		.select()
 		.from(choreAssignees)
 		.where(eq(choreAssignees.choreId, chore.id))
 		.orderBy(asc(choreAssignees.position))
-		.get();
+		.all();
 
 	const people = db
 		.select({ id: users.id, name: users.name, role: users.role })
@@ -31,7 +31,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		.orderBy(asc(users.name))
 		.all();
 
-	return { chore, assigneeId: assignee?.userId ?? null, people };
+	return { chore, assigneeIds: pool.map((a) => a.userId), people };
 };
 
 export const actions: Actions = {

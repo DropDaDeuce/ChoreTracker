@@ -26,7 +26,12 @@ export const choreSchema = z
 		/** Dollars in the form; converted to cents on save. */
 		allowance: z.coerce.number().min(0).max(1000).default(0),
 		requiresVerification: z.boolean().default(true),
-		assigneeId: z.coerce.number().int().positive('Pick who does this chore.')
+		graceDays: z.coerce.number().int().min(0).max(30).default(0),
+		assignmentType: z.enum(['fixed', 'rotating']).default('fixed'),
+		/** Ordered: position 0 first. Fixed assignment uses just the first entry. */
+		assigneeIds: z
+			.array(z.coerce.number().int().positive())
+			.min(1, 'Pick who does this chore.')
 	})
 	.superRefine((c, ctx) => {
 		if (c.frequency === 'weekly' && c.weekdays.length === 0) {
@@ -37,6 +42,20 @@ export const choreSchema = z
 		}
 		if (c.frequency === 'yearly' && !c.monthOfYear) {
 			ctx.addIssue({ code: 'custom', path: ['monthOfYear'], message: 'Pick a month.' });
+		}
+		if (c.assignmentType === 'rotating' && c.assigneeIds.length < 2) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['assigneeIds'],
+				message: 'A rotation needs at least two people.'
+			});
+		}
+		if (new Set(c.assigneeIds).size !== c.assigneeIds.length) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['assigneeIds'],
+				message: 'Each person can only appear once in the rotation.'
+			});
 		}
 	});
 
@@ -56,7 +75,9 @@ export function choreFormToObject(form: FormData) {
 		points: form.get('points') || 0,
 		allowance: form.get('allowance') || 0,
 		requiresVerification: form.get('requiresVerification') === 'on',
-		assigneeId: form.get('assigneeId')
+		graceDays: form.get('graceDays') || 0,
+		assignmentType: form.get('assignmentType') ?? 'fixed',
+		assigneeIds: form.getAll('assigneeIds')
 	};
 }
 

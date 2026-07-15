@@ -20,7 +20,10 @@
 		points: number;
 		allowanceDollars: number;
 		requiresVerification: boolean;
-		assigneeId: number | null;
+		graceDays: number;
+		assignmentType: 'fixed' | 'rotating';
+		/** Ordered pool; for fixed assignment only the first entry is used. */
+		assigneeIds: number[];
 	}
 
 	let {
@@ -28,17 +31,48 @@
 		initial,
 		message,
 		submitLabel = 'Save chore',
-		action = ''
+		action = '',
+		currency = '$'
 	}: {
 		people: Person[];
 		initial: Initial;
 		message?: string;
 		submitLabel?: string;
 		action?: string;
+		currency?: string;
 	} = $props();
 
 	// svelte-ignore state_referenced_locally -- form fields intentionally start from the initial values
 	let frequency = $state(initial.frequency);
+	// svelte-ignore state_referenced_locally
+	let assignmentType = $state(initial.assignmentType);
+	// svelte-ignore state_referenced_locally
+	let pool = $state<number[]>([...initial.assigneeIds]);
+	// svelte-ignore state_referenced_locally
+	let fixedId = $state<number | null>(initial.assigneeIds[0] ?? people[0]?.id ?? null);
+
+	let addId = $state<number | ''>('');
+
+	const available = $derived(people.filter((p) => !pool.includes(p.id)));
+
+	function nameOf(id: number) {
+		return people.find((p) => p.id === id)?.name ?? `#${id}`;
+	}
+	function addToPool() {
+		if (addId !== '' && !pool.includes(addId)) pool = [...pool, addId];
+		addId = '';
+	}
+	function removeFromPool(id: number) {
+		pool = pool.filter((p) => p !== id);
+	}
+	function move(id: number, delta: -1 | 1) {
+		const i = pool.indexOf(id);
+		const j = i + delta;
+		if (i < 0 || j < 0 || j >= pool.length) return;
+		const next = [...pool];
+		[next[i], next[j]] = [next[j], next[i]];
+		pool = next;
+	}
 </script>
 
 <form method="POST" {action} use:enhance class="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
@@ -143,7 +177,7 @@
 		</fieldset>
 	{/if}
 
-	<div class="grid gap-4 sm:grid-cols-3">
+	<div class="grid gap-4 sm:grid-cols-2">
 		<label class="block">
 			<span class="mb-1 block text-sm font-medium text-slate-700">Starts on</span>
 			<input
@@ -155,7 +189,21 @@
 			/>
 		</label>
 		<label class="block">
-			<span class="mb-1 block text-sm font-medium text-slate-700">Allowance ($)</span>
+			<span class="mb-1 block text-sm font-medium text-slate-700">Grace days before "missed"</span>
+			<input
+				name="graceDays"
+				type="number"
+				min="0"
+				max="30"
+				value={initial.graceDays}
+				class="w-full rounded-lg border border-slate-300 px-3 py-2"
+			/>
+		</label>
+	</div>
+
+	<div class="grid gap-4 sm:grid-cols-2">
+		<label class="block">
+			<span class="mb-1 block text-sm font-medium text-slate-700">Allowance ({currency})</span>
 			<input
 				name="allowance"
 				type="number"
@@ -179,17 +227,79 @@
 		</label>
 	</div>
 
-	<label class="block">
-		<span class="mb-1 block text-sm font-medium text-slate-700">Who does it?</span>
-		<select name="assigneeId" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
-			{#each people as person (person.id)}
-				<option value={person.id} selected={initial.assigneeId === person.id}>
-					{person.name}
-					{person.role === 'kid' ? '(kid)' : ''}
-				</option>
+	<fieldset>
+		<legend class="mb-2 text-sm font-medium text-slate-700">Who does it?</legend>
+		<div class="mb-3 flex gap-2">
+			<label class="cursor-pointer">
+				<input type="radio" name="assignmentType" value="fixed" bind:group={assignmentType} class="peer sr-only" />
+				<span class="block rounded-full border border-slate-300 px-4 py-1.5 text-sm peer-checked:border-slate-800 peer-checked:bg-slate-800 peer-checked:text-white">
+					One person
+				</span>
+			</label>
+			<label class="cursor-pointer">
+				<input type="radio" name="assignmentType" value="rotating" bind:group={assignmentType} class="peer sr-only" />
+				<span class="block rounded-full border border-slate-300 px-4 py-1.5 text-sm peer-checked:border-slate-800 peer-checked:bg-slate-800 peer-checked:text-white">
+					Rotate turns
+				</span>
+			</label>
+		</div>
+
+		{#if assignmentType === 'fixed'}
+			<select
+				name="assigneeIds"
+				required
+				bind:value={fixedId}
+				class="w-full rounded-lg border border-slate-300 px-3 py-2"
+			>
+				{#each people as person (person.id)}
+					<option value={person.id}>
+						{person.name}
+						{person.role === 'kid' ? '(kid)' : ''}
+					</option>
+				{/each}
+			</select>
+		{:else}
+			{#each pool as id (id)}
+				<input type="hidden" name="assigneeIds" value={id} />
 			{/each}
-		</select>
-	</label>
+			{#if pool.length === 0}
+				<p class="mb-2 text-sm text-slate-400">Nobody in the rotation yet — add at least two.</p>
+			{:else}
+				<ul class="mb-3 space-y-1.5">
+					{#each pool as id, i (id)}
+						<li class="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+							<span class="w-5 text-xs font-semibold text-slate-400">{i + 1}.</span>
+							<span class="flex-1 font-medium text-slate-700">{nameOf(id)}</span>
+							<button type="button" class="px-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-30" onclick={() => move(id, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+							<button type="button" class="px-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-30" onclick={() => move(id, 1)} disabled={i === pool.length - 1} aria-label="Move down">↓</button>
+							<button type="button" class="px-1.5 text-red-400 hover:text-red-600" onclick={() => removeFromPool(id)} aria-label="Remove">✕</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			{#if available.length > 0}
+				<div class="flex gap-2">
+					<select bind:value={addId} class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+						<option value="" disabled>Add someone…</option>
+						{#each available as person (person.id)}
+							<option value={person.id}>{person.name} {person.role === 'kid' ? '(kid)' : ''}</option>
+						{/each}
+					</select>
+					<button
+						type="button"
+						class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40"
+						onclick={addToPool}
+						disabled={addId === ''}
+					>
+						Add
+					</button>
+				</div>
+			{/if}
+			<p class="mt-2 text-xs text-slate-400">
+				Turns go in this order, one per occurrence.
+			</p>
+		{/if}
+	</fieldset>
 
 	<label class="flex items-center gap-2">
 		<input

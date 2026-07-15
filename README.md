@@ -5,26 +5,34 @@ A self-hosted household chore tracker for families. Runs on your own hardware
 phones, tablets, and laptops on your home network — no cloud, no accounts, no
 data leaving your house.
 
-> **Status:** early development. The planning and project foundation are in
-> place; the app itself is being built. See [`docs/PLAN.md`](docs/PLAN.md) for
-> the full design and roadmap.
+> **Status:** the core app works — chores, rotation, verification, and the
+> allowance ledger are all functional. See [`docs/PLAN.md`](docs/PLAN.md) for
+> the full design and what's still on the roadmap.
 
-## Features (planned)
+## Features
 
-- **Chores by frequency** — organize Daily, Weekly, Monthly, and Yearly chores.
+- **Chores by frequency** — Daily (every N days), Weekly (any set of
+  weekdays), Monthly, and Yearly chores, with a "My chores" view per person.
 - **Flexible assignment** — assign a chore to one person, or **rotate** it
-  through a defined pool of people.
-- **Mark done** — a simple, phone-friendly flow to check chores off.
+  through an ordered pool, one turn per occurrence.
+- **Mark done** — a simple, phone-friendly flow to check chores off, with an
+  undo window for mistakes.
 - **Kids' allowance** — kids earn an allowance when they mark a chore done and
   an adult verifies it. Getting reminded reduces the payout:
   - No reminders → full allowance
-  - 1 reminder → half
+  - 1 reminder → half (percentage configurable)
   - 2+ reminders → nothing for that chore
-- **Adult verification queue** — parents approve, reject, or add a reminder.
+- **Adult verification queue** — parents approve, reject, or add a reminder,
+  with a live payout preview.
 - **Earnings & payouts** — per-kid balance from an append-only ledger, with a
   payout flow and history.
-- **Extras on the roadmap** — rotation management, calendar view, streaks &
-  points leaderboard, photo proof, PWA install, and push reminders.
+- **Missed-chore sweep** — open chores past their due date (plus per-chore
+  grace days) are marked missed automatically each night.
+- **Profile + PIN login** — a kid-friendly profile picker, no usernames or
+  passwords; adult-only actions are role-gated server-side.
+- **Settings** — currency symbol, reminder penalty %, undo window, week start.
+- **On the roadmap** — calendar view, streaks & points leaderboard, photo
+  proof, PWA install, and push reminders.
 
 ## Tech stack
 
