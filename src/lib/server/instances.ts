@@ -1,0 +1,156 @@
+import { eq, sql } from 'drizzle-orm';
+import { allowanceLedger, choreInstances, chores, reminders, users } from './db/schema';
+import type { DB } from './db/type';
+import { computePayoutCents, payoutReason } from './payout';
+import { getSettingInt, REMINDER_PENALTY_PERCENT_KEY } from './settings';
+
+/**
+ * Instance lifecycle: pending → done → verified | rejected.
+ * All mutations validate the transition and throw Error with a user-facing
+ * message on bad input; routes surface that via fail(400).
+ */
+
+export class InstanceActionError extends Error {}
+
+function getInstanceWithChore(db: DB, instanceId: number) {
+	const row = db
+		.select({ instance: choreInstances, chore: chores })
+		.from(choreInstances)
+		.innerJoin(chores, eq(choreInstances.choreId, chores.id))
+		.where(eq(choreInstances.id, instanceId))
+		.get();
+	if (!row) throw new InstanceActionError('Chore not found.');
+	return row;
+}
+
+/**
+ * Mark an instance done. Allowed for the assignee themself or any adult.
+ * When the chore needs no verification it is finalized (and paid) immediately.
+ */
+export function markDone(db: DB, instanceId: number, actor: { id: number; role: string }): void {
+	const { instance, chore } = getInstanceWithChore(db, instanceId);
+	if (instance.status !== 'pending') {
+		throw new InstanceActionError('This chore is not open — it may already be done.');
+	}
+	if (actor.id !== instance.assigneeId && actor.role !== 'adult') {
+		throw new InstanceActionError('Only the assignee (or an adult) can mark this done.');
+	}
+
+	db.transaction((tx) => {
+		tx.update(choreInstances)
+			.set({ status: 'done', doneAt: new Date(), doneBy: actor.id })
+			.where(eq(choreInstances.id, instanceId))
+			.run();
+		if (!chore.requiresVerification) {
+			finalizeVerification(tx, instanceId, actor.id);
+		}
+	});
+}
+
+/** Adult nudges someone about an open/unverified chore; reduces the payout. */
+export function addReminder(db: DB, instanceId: number, adultId: number): void {
+	const { instance } = getInstanceWithChore(db, instanceId);
+	if (instance.status !== 'pending' && instance.status !== 'done') {
+		throw new InstanceActionError('Reminders only apply to open chores.');
+	}
+	db.transaction((tx) => {
+		tx.insert(reminders).values({ instanceId, remindedBy: adultId }).run();
+		tx.update(choreInstances)
+			.set({ reminderCount: sql`${choreInstances.reminderCount} + 1` })
+			.where(eq(choreInstances.id, instanceId))
+			.run();
+	});
+}
+
+/** Adult approves a done chore: freezes the payout and writes the ledger. */
+export function verifyInstance(db: DB, instanceId: number, adultId: number): void {
+	const { instance } = getInstanceWithChore(db, instanceId);
+	if (instance.status !== 'done') {
+		throw new InstanceActionError('Only chores marked done can be verified.');
+	}
+	db.transaction((tx) => finalizeVerification(tx, instanceId, adultId));
+}
+
+/** Adult rejects a done chore: back to pending so it can be redone. */
+export function rejectInstance(db: DB, instanceId: number, adultId: number, note?: string): void {
+	const { instance } = getInstanceWithChore(db, instanceId);
+	if (instance.status !== 'done') {
+		throw new InstanceActionError('Only chores marked done can be rejected.');
+	}
+	db.update(choreInstances)
+		.set({
+			status: 'pending',
+			doneAt: null,
+			doneBy: null,
+			verifiedAt: new Date(),
+			verifiedBy: adultId,
+			note: note?.trim() || instance.note
+		})
+		.where(eq(choreInstances.id, instanceId))
+		.run();
+}
+
+/**
+ * Shared by verifyInstance and no-verification markDone. Computes the payout
+ * from the reminder count, freezes it on the instance, and — when there is
+ * money to pay — appends an earning to the ledger.
+ */
+function finalizeVerification(tx: DB, instanceId: number, verifierId: number): void {
+	const { instance, chore } = getInstanceWithChore(tx, instanceId);
+	const penaltyPercent = getSettingInt(tx, REMINDER_PENALTY_PERCENT_KEY, 50);
+	const payoutCents = computePayoutCents(
+		chore.allowanceCents,
+		instance.reminderCount,
+		penaltyPercent
+	);
+
+	tx.update(choreInstances)
+		.set({ status: 'verified', verifiedAt: new Date(), verifiedBy: verifierId, payoutCents })
+		.where(eq(choreInstances.id, instanceId))
+		.run();
+
+	if (payoutCents > 0) {
+		const reason = payoutReason(instance.reminderCount);
+		tx.insert(allowanceLedger)
+			.values({
+				userId: instance.assigneeId,
+				instanceId,
+				type: 'earning',
+				amountCents: payoutCents,
+				note: `${chore.title} (${instance.dueDate})${reason ? ` — ${reason}` : ''}`,
+				createdBy: verifierId
+			})
+			.run();
+	}
+}
+
+/** A user's allowance balance in cents (sum of their ledger). */
+export function balanceCents(db: DB, userId: number): number {
+	const row = db
+		.select({ total: sql<number>`coalesce(sum(${allowanceLedger.amountCents}), 0)` })
+		.from(allowanceLedger)
+		.where(eq(allowanceLedger.userId, userId))
+		.get();
+	return row?.total ?? 0;
+}
+
+/** Adult pays out a kid's full balance: appends a negative `payout` row. */
+export function payOutBalance(db: DB, kidId: number, adultId: number): number {
+	const kid = db.select().from(users).where(eq(users.id, kidId)).get();
+	if (!kid) throw new InstanceActionError('Person not found.');
+
+	return db.transaction((tx) => {
+		const balance = balanceCents(tx, kidId);
+		if (balance <= 0) throw new InstanceActionError('Nothing to pay out.');
+		tx.insert(allowanceLedger)
+			.values({
+				userId: kidId,
+				type: 'payout',
+				amountCents: -balance,
+				note: 'Balance paid out',
+				createdBy: adultId
+			})
+			.run();
+		return balance;
+	});
+}
