@@ -280,9 +280,10 @@ function Update-Health {
     if ($healthy) {
         $statusDot.ForeColor = [System.Drawing.Color]::FromArgb(22, 163, 74)
         if ($mine) { $statusLabel.Text = "Running on port $port (started here)" }
-        else       { $statusLabel.Text = "Running on port $port (attached to external server)" }
+        else       { $statusLabel.Text = "Running on port $port (attached)" }
         $btnStart.Enabled = $false
-        $btnStop.Enabled = $mine
+        # Stop works for attached servers too (it finds the node PID on the port).
+        $btnStop.Enabled = $true
         $btnOpen.Enabled = $true
     } elseif ($mine) {
         $statusDot.ForeColor = [System.Drawing.Color]::FromArgb(217, 119, 6)
@@ -323,7 +324,7 @@ Update-Health
 # Headless self-test: CT_PANEL_TEST=1 builds the whole form + runs one health
 # poll, then exits instead of showing the window.
 if ($env:CT_PANEL_TEST -eq '1') {
-    Write-Host "PANEL-TEST OK  status='$($statusLabel.Text)'  buttons=$($allButtons.Count)"
+    Write-Host "PANEL-TEST OK  status='$($statusLabel.Text)'  buttons=$($allButtons.Count)  startEnabled=$($btnStart.Enabled)  stopEnabled=$($btnStop.Enabled)"
     exit 0
 }
 
