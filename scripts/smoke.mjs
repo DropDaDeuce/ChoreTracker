@@ -187,7 +187,7 @@ let settingsPage = await get('/admin/settings', alex);
 check('settings page renders', settingsPage.status === 200 && settingsPage.body.includes('Reminder penalty'));
 const saveSettings = await post(
 	'/admin/settings',
-	{ currencySymbol: '€', reminderPenaltyPercent: '50', undoWindowMinutes: '15', weekStart: 'monday' },
+	{ currencySymbol: '€', reminderPenaltyPercent: '50', undoWindowMinutes: '15', weekStart: 'monday', backupKeepCount: '14' },
 	alex
 );
 check('settings save succeeds', saveSettings.status === 200);
@@ -195,7 +195,7 @@ const dashEuro = await get('/dashboard', alex);
 check('currency symbol threads through UI', dashEuro.body.includes('€'));
 await post(
 	'/admin/settings',
-	{ currencySymbol: '$', reminderPenaltyPercent: '50', undoWindowMinutes: '15', weekStart: 'monday' },
+	{ currencySymbol: '$', reminderPenaltyPercent: '50', undoWindowMinutes: '15', weekStart: 'monday', backupKeepCount: '14' },
 	alex
 );
 
@@ -261,6 +261,10 @@ const csvBody = await csv.text();
 check('CSV export works for adult', csv.status === 200 && (csv.headers.get('content-type') ?? '').includes('text/csv') && csvBody.startsWith('date,type,amount,note'));
 const csvForbidden = await fetch(BASE + '/earnings/export?person=3', { headers: { cookie: sam } });
 check("kid can't export someone else's CSV", csvForbidden.status === 403);
+
+// Ops: health endpoint
+const health = await get('/healthz');
+check('healthz reports ok', health.status === 200 && health.body.includes('"ok":true'));
 
 // Phase 3: PWA assets
 const manifest = await get('/manifest.webmanifest');

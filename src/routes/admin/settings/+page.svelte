@@ -63,6 +63,23 @@
 			/>
 		</label>
 
+		<label class="block">
+			<span class="mb-1 block text-sm font-medium text-slate-700">
+				Nightly backups to keep (0 = off)
+			</span>
+			<input
+				name="backupKeepCount"
+				type="number"
+				min="0"
+				max="365"
+				value={data.settings.backupKeepCount}
+				class="w-full rounded-lg border border-slate-300 px-3 py-2"
+			/>
+			<span class="mt-1 block text-xs text-slate-400">
+				Written automatically each night to <code class="rounded bg-slate-100 px-1">data/backups</code>.
+			</span>
+		</label>
+
 		{#if form?.message}
 			<p class="text-sm font-medium text-red-600">{form.message}</p>
 		{/if}

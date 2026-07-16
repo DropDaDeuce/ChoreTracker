@@ -19,7 +19,7 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 
 * **[Low] HTTPS on the LAN guide.** Full PWA install + Web Push require a secure context. Write up (or script) the reverse-proxy path — e.g. Caddy/Traefik with a local CA, or a Tailscale cert — so a home server gets install prompts + notifications. Until then both features degrade gracefully by design.
 * **[Low] Container timezone note.** `node:22-alpine` defaults to UTC; `todayLocal()` and the 00:05 cron follow the container clock. Document setting `TZ=` in docker-compose (and consider surfacing the server's "today" in the admin UI so a mismatch is obvious).
-* **[Low] Photo storage hygiene.** Verified-instance photos are kept forever. Decide a retention policy (e.g. purge photos on instances verified >90 days ago) and add it to the nightly job with a setting.
+* **[Low] Photo storage hygiene.** Verified-instance photos are kept forever. Decide a retention policy (e.g. purge photos on instances verified >90 days ago) and add it to the nightly job with a setting. (`admin doctor` already reports orphan photos as info.)
 * **[Low] npm audit noise.** ~8 vulns pinned inside drizzle-kit's bundled dev-time deps (`@esbuild-kit/*`). Not runtime-reachable. Re-check when drizzle-kit ships a cleaned release; do NOT `audit fix --force`.
 
 ### Ideas (unscoped)
@@ -30,6 +30,11 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 * **[Idea] E2E browser tests** — the plan named Playwright; the HTTP smoke covers the flows, but a thin Playwright layer would exercise the actual JS (PIN pad, pool builder, enhance forms).
 
 ## Done
+
+* **2026-07-15 — Ops tooling: admin CLI, nightly auto-backups, healthz.**
+  * `npm run admin` — `status` / `doctor` (integrity, migrations, lockout risk, unassigned chores, photo bookkeeping, WAL size, disk free, TZ; exit 1 on failure) / `reset-pin` (the lockout rescue — verified live against a running server) / `list-users` / `backup` / `prune-backups` / `checkpoint`.
+  * Nightly auto-backup in the scheduler → `data/backups`, retention via new `backup_keep_count` setting (Settings UI field; 0 disables). Shared `backup.ts` now backs the download route, CLI, and scheduler.
+  * `GET /healthz` (unauthenticated liveness) + Docker `HEALTHCHECK`. Smoke grew to 68 checks; README gained a "Maintaining the server" section.
 
 * **2026-07-15 — Phases 0–4 built, verified, committed (one session).**
   * **Phase 0 (`84ede39`):** SvelteKit 2 + Svelte 5 runes + Tailwind v4 + Drizzle/better-sqlite3 skeleton; migrations-on-boot; multi-stage Dockerfile + compose; landing page proves the stack end-to-end.

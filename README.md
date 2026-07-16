@@ -102,11 +102,42 @@ Then open `http://<your-server-ip>:3000` from any device on your LAN.
 ## Backups
 
 All of your data lives in the `data/` directory (the SQLite database and any
-uploaded photos). To back up, simply copy that folder:
+uploaded photos). Three ways to back up, safest first:
+
+1. **Automatic** — every night the app writes a backup zip to `data/backups`
+   and keeps the newest 14 (configurable under Settings; 0 turns it off).
+2. **From the app** — Settings → Backup & restore downloads a zip and can
+   restore one later, even while the app is running.
+3. **By hand** — copy the whole folder:
 
 ```bash
 cp -r data/ ~/choretracker-backup-$(date +%F)/
 ```
+
+Keep a copy somewhere off the server — `data/backups` protects against
+mistakes and corruption, not a dead disk.
+
+## Maintaining the server
+
+A small admin CLI ships with the app (run from the repo root on the server):
+
+```bash
+npm run admin -- status                  # household + database overview
+npm run admin -- doctor                  # health checks (exit 1 on failure)
+npm run admin -- reset-pin <name> [pin]  # rescue a forgotten PIN
+npm run admin -- list-users
+npm run admin -- backup [dir]            # write a backup zip now
+npm run admin -- prune-backups [keep]
+npm run admin -- checkpoint              # shrink the SQLite WAL file
+```
+
+All commands are safe while the server is running. `reset-pin` is the
+lockout rescue — if the only adult forgets their PIN, run it from a shell on
+the server.
+
+The app also serves `GET /healthz` (unauthenticated, returns
+`{"ok":true}`) — the Docker image uses it as its `HEALTHCHECK`, and any
+uptime monitor can watch it.
 
 ## Privacy
 

@@ -1,7 +1,9 @@
 import { schedule } from 'node-cron';
+import { pruneBackups, writeBackupFile } from './backup';
 import { todayLocal } from './dates';
 import { db } from './db';
 import { generateDueInstances } from './generate';
+import { BACKUP_KEEP_COUNT_KEY, getSettingInt } from './settings';
 import { sweepOverdue } from './sweep';
 
 declare global {
@@ -14,6 +16,7 @@ declare global {
  * server sleeps and reboots) and every night at 00:05:
  *   1. materialize upcoming chore instances
  *   2. sweep overdue pending instances to `missed`
+ *   3. (nightly only) write an automatic backup + prune old ones
  */
 export function startScheduler(): void {
 	if (globalThis.__choretrackerSchedulerStarted) return;
@@ -32,8 +35,26 @@ export function startScheduler(): void {
 		}
 	};
 
+	const autoBackup = async () => {
+		try {
+			const keep = getSettingInt(db, BACKUP_KEEP_COUNT_KEY, 14);
+			if (keep <= 0) return; // disabled in settings
+			const { path, bytes } = await writeBackupFile();
+			const pruned = pruneBackups(keep);
+			console.log(
+				`[scheduler] nightly backup: ${path} (${Math.round(bytes / 1024)} KB)` +
+					(pruned > 0 ? `, pruned ${pruned} old` : '')
+			);
+		} catch (err) {
+			console.error('[scheduler] nightly backup failed', err);
+		}
+	};
+
 	run('startup catch-up');
-	const task = schedule('5 0 * * *', () => run('nightly'));
+	const task = schedule('5 0 * * *', () => {
+		run('nightly');
+		void autoBackup();
+	});
 
 	// adapter-node closes the HTTP server on SIGINT/SIGTERM and then emits this
 	// event; without destroying the cron task its timer keeps the event loop

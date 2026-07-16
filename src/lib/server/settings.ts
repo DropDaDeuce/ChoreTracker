@@ -33,11 +33,15 @@ export const UNDO_WINDOW_MINUTES_KEY = 'undo_window_minutes';
 /** 'monday' | 'sunday' — used by week-based views (calendar, Phase 3). */
 export const WEEK_START_KEY = 'week_start';
 
+/** How many nightly auto-backups to keep in data/backups (0 disables them). */
+export const BACKUP_KEEP_COUNT_KEY = 'backup_keep_count';
+
 export const DEFAULT_SETTINGS = {
 	[REMINDER_PENALTY_PERCENT_KEY]: '50',
 	[CURRENCY_SYMBOL_KEY]: '$',
 	[UNDO_WINDOW_MINUTES_KEY]: '15',
-	[WEEK_START_KEY]: 'monday'
+	[WEEK_START_KEY]: 'monday',
+	[BACKUP_KEEP_COUNT_KEY]: '14'
 } as const;
 
 export function getSettingOr(db: DB, key: keyof typeof DEFAULT_SETTINGS): string {

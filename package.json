@@ -17,6 +17,7 @@
 		"db:studio": "drizzle-kit studio",
 		"seed": "tsx scripts/seed.ts",
 		"smoke": "node scripts/smoke.mjs",
+		"admin": "tsx scripts/admin.ts",
 		"test": "vitest run",
 		"test:watch": "vitest"
 	},

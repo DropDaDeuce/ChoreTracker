@@ -34,4 +34,7 @@ ENV DATABASE_PATH=/app/data/chores.db
 ENV BODY_SIZE_LIMIT=10M
 EXPOSE 3000
 
+HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
+	CMD wget -qO- http://127.0.0.1:3000/healthz || exit 1
+
 CMD ["node", "build"]
