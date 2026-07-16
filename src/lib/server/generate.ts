@@ -1,7 +1,8 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { addDays, todayLocal } from './dates';
-import { choreAssignees, choreInstances, chores } from './db/schema';
+import { choreAssignees, choreInstances, chores, users } from './db/schema';
 import type { DB } from './db/type';
+import { isHome } from './presence';
 import { nextOccurrence, occurrencesInRange, type Recurrence } from './recurrence';
 import { getLastPosition, nextPosition, setLastPosition } from './rotation';
 
@@ -17,6 +18,10 @@ export const ROLLING_WINDOW_DAYS = 14;
  *   harmless, so this runs on every boot and every night without guards.
  * - Rotation advances only when a row is actually inserted, so re-runs never
  *   skip anyone's turn.
+ * - Presence-aware: nobody is scheduled on a day they're away (see
+ *   presence.ts). Fixed chores simply skip that day; rotations hand the turn
+ *   to the next person who IS home, or skip the day if nobody is.
+ * - Deactivated people are never scheduled (their pool entries are ignored).
  *
  * Returns the number of instances created.
  */
@@ -36,24 +41,34 @@ export function generateDueInstances(db: DB, today = todayLocal()): number {
 		if (dates.length === 0) continue;
 
 		const pool = db
-			.select()
+			.select({ userId: choreAssignees.userId, position: choreAssignees.position })
 			.from(choreAssignees)
-			.where(eq(choreAssignees.choreId, chore.id))
+			.innerJoin(users, eq(choreAssignees.userId, users.id))
+			.where(and(eq(choreAssignees.choreId, chore.id), eq(users.isActive, true)))
 			.orderBy(asc(choreAssignees.position))
 			.all();
-		if (pool.length === 0) continue; // unassigned chore: nothing to schedule
+		if (pool.length === 0) continue; // unassigned (or fully deactivated) chore
 
 		db.transaction((tx) => {
 			for (const dueDate of dates) {
-				let assigneeId: number;
+				let assigneeId: number | null = null;
 				let rotationPick: number | null = null;
 
 				if (chore.assignmentType === 'rotating') {
-					rotationPick = nextPosition(getLastPosition(tx, chore.id), pool.length);
-					assigneeId = pool[rotationPick].userId;
-				} else {
+					// Hand the turn to the next pool member who is home that day.
+					const last = getLastPosition(tx, chore.id);
+					for (let step = 0; step < pool.length; step++) {
+						const candidate = (nextPosition(last, pool.length) + step) % pool.length;
+						if (isHome(tx, pool[candidate].userId, dueDate)) {
+							rotationPick = candidate;
+							assigneeId = pool[candidate].userId;
+							break;
+						}
+					}
+				} else if (isHome(tx, pool[0].userId, dueDate)) {
 					assigneeId = pool[0].userId;
 				}
+				if (assigneeId === null) continue; // everyone (or the assignee) is away
 
 				const result = tx
 					.insert(choreInstances)

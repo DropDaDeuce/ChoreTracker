@@ -356,6 +356,40 @@ check('marker chore gone after restore', !adminList.body.includes('Post-backup m
 earnings = await get('/earnings', alex);
 check('restored data intact (balance still $0.75)', earnings.body.includes('$0.75'));
 
+// Presence: days-at-home calendar
+const usersPage = await get('/admin/users', alex);
+check('people page links to days-at-home', usersPage.body.includes('Days at home'));
+let presencePage = await get('/admin/users/2/presence', alex);
+check('presence calendar renders', presencePage.status === 200 && presencePage.body.includes('days at home') && presencePage.body.includes('Repeating patterns'));
+const kidPresence = await get('/admin/users/2/presence', sam);
+check('kid blocked from presence page (403)', kidPresence.status === 403);
+
+const localToday = new Date();
+const todayWeekday = (localToday.getDay() + 6) % 7; // 0 = Monday
+const addRuleRes = await post(
+	`/admin/users/2/presence?/addRule`,
+	{ kind: 'weekly', isHome: 'false', weekday: String(todayWeekday) },
+	alex
+);
+check('away-every-weekday rule added', addRuleRes.status === 200);
+presencePage = await get('/admin/users/2/presence', alex);
+check('rule listed on calendar page', presencePage.body.includes('Away every'));
+dash = await get('/dashboard', sam);
+check('kid dashboard shows away banner', dash.body.includes('away today'));
+
+const ruleId = presencePage.body.match(/name="ruleId" value="(\d+)"/)?.[1];
+check('rule exposes delete control', Boolean(ruleId));
+await post(`/admin/users/2/presence?/deleteRule`, { ruleId }, alex);
+dash = await get('/dashboard', sam);
+check('banner clears when rule removed', !dash.body.includes('away today'));
+
+await post(`/admin/users/2/presence?/toggleDay`, { date: today }, alex);
+dash = await get('/dashboard', sam);
+check('single-day toggle marks kid away', dash.body.includes('away today'));
+await post(`/admin/users/2/presence?/resetDay`, { date: today }, alex);
+dash = await get('/dashboard', sam);
+check('day reset brings kid home', !dash.body.includes('away today'));
+
 // 10. Logout kills the session
 const out = await post('/logout', {}, alex);
 check('logout redirects', out.status === 303);

@@ -31,6 +31,13 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 
 ## Done
 
+* **2026-07-15 — Presence ("Days at home") for split households + deploy tool.**
+  * Presence calendar per person (People → Days at home): click a day to flip home/away, right-click for patterns (away/home every X, every other X with anchor date, Nth of month), pattern list with remove + a form fallback for mobile. Day overrides beat rules; newest rule wins; default home.
+  * Engine: generation skips away people (fixed chores skip the day; rotations hand the turn to whoever's home, skip the day if nobody is); presence changes drop future pending instances on away days and regenerate (history untouched); swaps refuse away targets; kid dashboard shows an away banner; People page shows away-today.
+  * **Bug fixed:** generation scheduled chores for DEACTIVATED users (pool query never checked `is_active`).
+  * Deploy tool: `tools/deploy.ps1` (+ control-panel button, target remembered in gitignored `.deploy-target`) builds and mirrors a runnable production copy (build/drizzle/src/scripts/tools + npm ci), never touches the target's `data/`, optional demo seed on first install. Verified end-to-end: deployed to a scratch folder, booted standalone, healthz + seeded picker OK.
+  * 86 vitest tests (12 new presence) + 78-step smoke green.
+
 * **2026-07-15 — Windows control panel (`ChoreTracker.cmd`).** WinForms GUI (PowerShell, zero deps, pure-ASCII .ps1 for PS 5.1): health-polled attach/start/stop of the server, buttons for the whole admin CLI (incl. reset-PIN with inputs), dev actions (build/check/test/seed/smoke with destructive-action confirms), streamed command output, server log viewer. Headless self-test hook (`CT_PANEL_TEST=1`). Gotcha fixed: health checks hit `127.0.0.1`, not `localhost` — adapter-node binds IPv4 while localhost resolves to `::1`.
 
 * **2026-07-15 — Ops tooling: admin CLI, nightly auto-backups, healthz.**

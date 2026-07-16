@@ -3,6 +3,7 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { choreInstances, chores, swapRequests, users } from './db/schema';
 import type { DB } from './db/type';
 import { InstanceActionError } from './instances';
+import { isHome } from './presence';
 
 /** Ask someone else to take over one specific chore instance. */
 export function requestSwap(db: DB, instanceId: number, fromUserId: number, toUserId: number) {
@@ -20,6 +21,9 @@ export function requestSwap(db: DB, instanceId: number, fromUserId: number, toUs
 
 	const target = db.select().from(users).where(eq(users.id, toUserId)).get();
 	if (!target?.isActive) throw new InstanceActionError('Person not found.');
+	if (!isHome(db, toUserId, instance.dueDate)) {
+		throw new InstanceActionError(`${target.name} is away that day — pick someone else.`);
+	}
 
 	const open = db
 		.select()

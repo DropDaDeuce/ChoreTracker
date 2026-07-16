@@ -194,6 +194,43 @@ export const swapRequests = sqliteTable(
 	(t) => [index('swap_requests_to_user_idx').on(t.toUser, t.status)]
 );
 
+/**
+ * Repeating home/away patterns ("away every other Thursday"). Most recently
+ * created matching rule wins; day overrides beat rules; default is home.
+ */
+export const presenceRules = sqliteTable('presence_rules', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	kind: text('kind', { enum: ['weekly', 'biweekly', 'monthly'] }).notNull(),
+	/** 0 = Monday … 6 = Sunday (weekly/biweekly). */
+	weekday: integer('weekday'),
+	/** A date that IS part of the pattern — fixes the biweekly phase. */
+	anchorDate: text('anchor_date'),
+	/** 1–31, clamped to month length (monthly). */
+	dayOfMonth: integer('day_of_month'),
+	isHome: integer('is_home', { mode: 'boolean' }).notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
+/** Single-day home/away overrides — always beat the rules. */
+export const presenceDays = sqliteTable(
+	'presence_days',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		/** YYYY-MM-DD. */
+		date: text('date').notNull(),
+		isHome: integer('is_home', { mode: 'boolean' }).notNull()
+	},
+	(t) => [uniqueIndex('presence_days_user_date_unique').on(t.userId, t.date)]
+);
+
 /** Simple key/value store for app-wide settings (currency symbol, week start, ...). */
 export const appSettings = sqliteTable('app_settings', {
 	key: text('key').primaryKey(),

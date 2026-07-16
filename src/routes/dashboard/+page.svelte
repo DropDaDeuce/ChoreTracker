@@ -47,6 +47,12 @@
 
 	<NotificationSetup vapidPublicKey={data.vapidPublicKey} />
 
+	{#if data.awayToday}
+		<p class="rounded-2xl bg-sky-50 p-4 text-sm font-medium text-sky-800">
+			✈️ You're marked as away today — no chores are assigned to you.
+		</p>
+	{/if}
+
 	{#if data.swaps.incoming.length > 0}
 		<section>
 			<h2 class="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">

@@ -1,6 +1,8 @@
 import { hashPin, requireAdult } from '$lib/server/auth';
+import { todayLocal } from '$lib/server/dates';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
+import { isHome } from '$lib/server/presence';
 import { firstZodMessage, personSchema, pinSchema } from '$lib/server/validation';
 import { fail } from '@sveltejs/kit';
 import { and, asc, eq, ne } from 'drizzle-orm';
@@ -8,6 +10,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
 	const me = requireAdult(locals);
+	const today = todayLocal();
 	const people = db
 		.select({
 			id: users.id,
@@ -18,7 +21,8 @@ export const load: PageServerLoad = ({ locals }) => {
 		})
 		.from(users)
 		.orderBy(asc(users.name))
-		.all();
+		.all()
+		.map((p) => ({ ...p, awayToday: !isHome(db, p.id, today) }));
 	return { people, myId: me.id };
 };
 

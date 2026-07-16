@@ -37,8 +37,17 @@
 							<p class="text-xs text-slate-500">
 								{person.role === 'adult' ? '🧑 Adult' : '🧒 Kid'}
 								{#if !person.isActive}· inactive{/if}
+								{#if person.awayToday}
+									· <span class="font-semibold text-sky-600">✈️ away today</span>
+								{/if}
 							</p>
 						</div>
+						<a
+							href="/admin/users/{person.id}/presence"
+							class="text-sm font-medium text-slate-500 hover:text-slate-800"
+						>
+							Days at home
+						</a>
 						<button
 							type="button"
 							class="text-sm font-medium text-slate-500 hover:text-slate-800"

@@ -28,6 +28,10 @@ data leaving your house.
   payout flow and history.
 - **Missed-chore sweep** — open chores past their due date (plus per-chore
   grace days) are marked missed automatically each night.
+- **Days at home** — for split households: each person gets a presence
+  calendar (People → Days at home). Click days on/off or set repeating
+  patterns ("away every other Thursday"); nobody is assigned chores on days
+  they're away, and rotations automatically skip to whoever's home.
 - **Profile + PIN login** — a kid-friendly profile picker, no usernames or
   passwords; adult-only actions are role-gated server-side.
 - **Settings** — currency symbol, reminder penalty %, undo window, week start.

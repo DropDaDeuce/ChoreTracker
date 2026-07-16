@@ -2,6 +2,7 @@ import { requireUser } from '$lib/server/auth';
 import { addDays, todayLocal } from '$lib/server/dates';
 import { db } from '$lib/server/db';
 import { choreInstances, chores, users } from '$lib/server/db/schema';
+import { isHome } from '$lib/server/presence';
 import { getVapidPublicKey, notifyUser } from '$lib/server/push';
 import { acceptSwap, cancelSwap, declineSwap, openSwapsFor, requestSwap } from '$lib/server/swaps';
 import {
@@ -88,7 +89,8 @@ export const load: PageServerLoad = ({ locals }) => {
 		verifyQueueCount,
 		swaps: openSwapsFor(db, user.id),
 		swapPeople,
-		vapidPublicKey: getVapidPublicKey(db)
+		vapidPublicKey: getVapidPublicKey(db),
+		awayToday: !isHome(db, user.id, today)
 	};
 };
 
