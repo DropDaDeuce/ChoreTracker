@@ -22,6 +22,13 @@
       "when": 1784159864029,
       "tag": "0002_phase3-points",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784160142138,
+      "tag": "0003_phase4-push-swaps",
+      "breakpoints": true
     }
   ]
 }

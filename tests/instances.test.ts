@@ -1,6 +1,7 @@
 import { allowanceLedger, choreAssignees, choreInstances, chores } from '$lib/server/db/schema';
 import { generateDueInstances } from '$lib/server/generate';
 import {
+	addAdjustment,
 	addReminder,
 	balanceCents,
 	InstanceActionError,
@@ -129,6 +130,22 @@ describe('full allowance loop', () => {
 		expect(paid).toBe(200);
 		expect(balanceCents(db, kid.id)).toBe(0);
 		expect(() => payOutBalance(db, kid.id, adult.id)).toThrow(InstanceActionError);
+	});
+});
+
+describe('addAdjustment', () => {
+	it('bonuses add and penalties subtract', () => {
+		addAdjustment(db, kid.id, adult.id, 'bonus', 150, 'Helped wash the car');
+		expect(balanceCents(db, kid.id)).toBe(150);
+
+		addAdjustment(db, kid.id, adult.id, 'penalty', 50, 'Left the door open');
+		expect(balanceCents(db, kid.id)).toBe(100);
+	});
+
+	it('rejects zero/negative amounts and unknown people', () => {
+		expect(() => addAdjustment(db, kid.id, adult.id, 'bonus', 0, '')).toThrow(InstanceActionError);
+		expect(() => addAdjustment(db, kid.id, adult.id, 'bonus', -5, '')).toThrow(InstanceActionError);
+		expect(() => addAdjustment(db, 999, adult.id, 'bonus', 100, '')).toThrow(InstanceActionError);
 	});
 });
 

@@ -156,6 +156,44 @@ export const allowanceLedger = sqliteTable(
 	(t) => [index('allowance_ledger_user_idx').on(t.userId)]
 );
 
+/** One row per browser that opted into push notifications. */
+export const pushSubscriptions = sqliteTable('push_subscriptions', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	endpoint: text('endpoint').notNull().unique(),
+	p256dh: text('p256dh').notNull(),
+	auth: text('auth').notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
+/** "Can you take this one?" — offers a single chore instance to someone else. */
+export const swapRequests = sqliteTable(
+	'swap_requests',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		instanceId: integer('instance_id')
+			.notNull()
+			.references(() => choreInstances.id, { onDelete: 'cascade' }),
+		fromUser: integer('from_user')
+			.notNull()
+			.references(() => users.id),
+		toUser: integer('to_user')
+			.notNull()
+			.references(() => users.id),
+		status: text('status', { enum: ['pending', 'accepted', 'declined', 'cancelled'] })
+			.notNull()
+			.default('pending'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(t) => [index('swap_requests_to_user_idx').on(t.toUser, t.status)]
+);
+
 /** Simple key/value store for app-wide settings (currency symbol, week start, ...). */
 export const appSettings = sqliteTable('app_settings', {
 	key: text('key').primaryKey(),

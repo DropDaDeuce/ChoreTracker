@@ -61,6 +61,53 @@
 				{/if}
 			</div>
 
+			{#if data.isAdult}
+				<details class="mt-3">
+					<summary class="cursor-pointer text-xs font-medium text-slate-400 hover:text-slate-600">
+						± Bonus / penalty
+					</summary>
+					<form
+						method="POST"
+						action="?/adjust"
+						use:enhance
+						class="mt-2 flex flex-wrap items-end gap-2 rounded-xl bg-slate-50 p-3"
+					>
+						<input type="hidden" name="kidId" value={person.id} />
+						<label class="block">
+							<span class="mb-1 block text-xs font-medium text-slate-500">Type</span>
+							<select name="type" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+								<option value="bonus">Bonus (+)</option>
+								<option value="penalty">Penalty (−)</option>
+							</select>
+						</label>
+						<label class="block">
+							<span class="mb-1 block text-xs font-medium text-slate-500">Amount ({data.currency})</span>
+							<input
+								name="amount"
+								type="number"
+								min="0.01"
+								max="1000"
+								step="0.01"
+								required
+								class="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+							/>
+						</label>
+						<label class="block flex-1">
+							<span class="mb-1 block text-xs font-medium text-slate-500">Reason</span>
+							<input
+								name="note"
+								maxlength="200"
+								placeholder="e.g. Helped wash the car"
+								class="w-full min-w-32 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+							/>
+						</label>
+						<button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white">
+							Apply
+						</button>
+					</form>
+				</details>
+			{/if}
+
 			{#if person.recentChores.length > 0}
 				<h3 class="mt-5 mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
 					Recent chores

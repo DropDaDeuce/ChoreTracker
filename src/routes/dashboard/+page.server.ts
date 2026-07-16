@@ -1,7 +1,9 @@
 import { requireUser } from '$lib/server/auth';
 import { addDays, todayLocal } from '$lib/server/dates';
 import { db } from '$lib/server/db';
-import { choreInstances, chores } from '$lib/server/db/schema';
+import { choreInstances, chores, users } from '$lib/server/db/schema';
+import { getVapidPublicKey, notifyUser } from '$lib/server/push';
+import { acceptSwap, cancelSwap, declineSwap, openSwapsFor, requestSwap } from '$lib/server/swaps';
 import {
 	balanceCents,
 	InstanceActionError,
@@ -66,6 +68,14 @@ export const load: PageServerLoad = ({ locals }) => {
 					.get()?.n ?? 0)
 			: 0;
 
+	const swapPeople = db
+		.select({ id: users.id, name: users.name })
+		.from(users)
+		.where(eq(users.isActive, true))
+		.orderBy(asc(users.name))
+		.all()
+		.filter((p) => p.id !== user.id);
+
 	return {
 		today,
 		open,
@@ -75,7 +85,10 @@ export const load: PageServerLoad = ({ locals }) => {
 		completedToday,
 		balance: balanceCents(db, user.id),
 		streak: currentStreak(db, user.id, today),
-		verifyQueueCount
+		verifyQueueCount,
+		swaps: openSwapsFor(db, user.id),
+		swapPeople,
+		vapidPublicKey: getVapidPublicKey(db)
 	};
 };
 
@@ -120,5 +133,62 @@ export const actions: Actions = {
 		}
 		deletePhoto(before?.photoPath);
 		return { success: true };
-	}
+	},
+
+	requestSwap: swapAction((form, user) => {
+		const toUserId = Number(form.get('toUserId'));
+		const swap = requestSwap(db, Number(form.get('instanceId')), user.id, toUserId);
+		const ctx = swapContext(swap.instanceId);
+		notifyUser(db, toUserId, {
+			title: `🔁 ${user.name} asks for a swap`,
+			body: ctx ? `Can you take "${ctx.title}" (${ctx.dueDate})?` : 'Can you take a chore?',
+			url: '/dashboard'
+		});
+	}),
+	acceptSwap: swapAction((form, user) => {
+		const swap = acceptSwap(db, Number(form.get('swapId')), user.id);
+		const ctx = swapContext(swap.instanceId);
+		notifyUser(db, swap.fromUser, {
+			title: `✅ ${user.name} took your chore`,
+			body: ctx ? `"${ctx.title}" (${ctx.dueDate}) is off your list.` : 'Swap accepted.',
+			url: '/dashboard'
+		});
+	}),
+	declineSwap: swapAction((form, user) => {
+		const swap = declineSwap(db, Number(form.get('swapId')), user.id);
+		const ctx = swapContext(swap.instanceId);
+		notifyUser(db, swap.fromUser, {
+			title: `❌ ${user.name} can't take it`,
+			body: ctx ? `"${ctx.title}" (${ctx.dueDate}) is still yours.` : 'Swap declined.',
+			url: '/dashboard'
+		});
+	}),
+	cancelSwap: swapAction((form, user) => {
+		cancelSwap(db, Number(form.get('swapId')), user.id);
+	})
 };
+
+function swapContext(instanceId: number) {
+	return db
+		.select({ title: chores.title, dueDate: choreInstances.dueDate })
+		.from(choreInstances)
+		.innerJoin(chores, eq(choreInstances.choreId, chores.id))
+		.where(eq(choreInstances.id, instanceId))
+		.get();
+}
+
+function swapAction(
+	fn: (form: FormData, user: { id: number; name: string; role: string }) => void
+): NonNullable<Actions[string]> {
+	return async ({ request, locals }) => {
+		const user = requireUser(locals);
+		const form = await request.formData();
+		try {
+			fn(form, user);
+		} catch (err) {
+			if (err instanceof InstanceActionError) return fail(400, { message: err.message });
+			throw err;
+		}
+		return { success: true };
+	};
+}

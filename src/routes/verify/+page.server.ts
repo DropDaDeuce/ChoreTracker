@@ -8,8 +8,15 @@ import {
 	rejectInstance,
 	verifyInstance
 } from '$lib/server/instances';
+import { formatCents } from '$lib/money';
 import { computePayoutCents } from '$lib/server/payout';
-import { getSettingInt, REMINDER_PENALTY_PERCENT_KEY } from '$lib/server/settings';
+import { notifyUser } from '$lib/server/push';
+import {
+	CURRENCY_SYMBOL_KEY,
+	getSettingInt,
+	getSettingOr,
+	REMINDER_PENALTY_PERCENT_KEY
+} from '$lib/server/settings';
 import { deletePhoto } from '$lib/server/uploads';
 import { fail } from '@sveltejs/kit';
 import { and, asc, eq, lte } from 'drizzle-orm';
@@ -67,16 +74,62 @@ function instanceAction(fn: (instanceId: number, adultId: number) => void): NonN
 	};
 }
 
+function instanceContext(id: number) {
+	return db
+		.select({ instance: choreInstances, chore: chores })
+		.from(choreInstances)
+		.innerJoin(chores, eq(choreInstances.choreId, chores.id))
+		.where(eq(choreInstances.id, id))
+		.get();
+}
+
 export const actions: Actions = {
-	verify: instanceAction((id, adultId) => verifyInstance(db, id, adultId)),
-	reject: instanceAction((id, adultId) => {
-		const before = db
-			.select({ photoPath: choreInstances.photoPath })
-			.from(choreInstances)
-			.where(eq(choreInstances.id, id))
-			.get();
-		rejectInstance(db, id, adultId);
-		deletePhoto(before?.photoPath); // redo means fresh proof
+	verify: instanceAction((id, adultId) => {
+		verifyInstance(db, id, adultId);
+		const ctx = instanceContext(id);
+		if (ctx) {
+			const currency = getSettingOr(db, CURRENCY_SYMBOL_KEY);
+			const payout = ctx.instance.payoutCents ?? 0;
+			notifyUser(db, ctx.instance.assigneeId, {
+				title: `✅ ${ctx.chore.title} verified!`,
+				body: payout > 0 ? `You earned ${formatCents(payout, currency)}.` : 'Nice work!',
+				url: '/earnings'
+			});
+		}
 	}),
-	remind: instanceAction((id, adultId) => addReminder(db, id, adultId))
+	reject: instanceAction((id, adultId) => {
+		const before = instanceContext(id);
+		rejectInstance(db, id, adultId);
+		deletePhoto(before?.instance.photoPath); // redo means fresh proof
+		if (before) {
+			notifyUser(db, before.instance.assigneeId, {
+				title: `↩ ${before.chore.title} needs another go`,
+				body: 'It was sent back — give it one more try.',
+				url: '/dashboard'
+			});
+		}
+	}),
+	remind: instanceAction((id, adultId) => {
+		addReminder(db, id, adultId);
+		const ctx = instanceContext(id);
+		if (ctx) {
+			const currency = getSettingOr(db, CURRENCY_SYMBOL_KEY);
+			const penalty = getSettingInt(db, REMINDER_PENALTY_PERCENT_KEY, 50);
+			const payout = computePayoutCents(
+				ctx.chore.allowanceCents,
+				ctx.instance.reminderCount,
+				penalty
+			);
+			notifyUser(db, ctx.instance.assigneeId, {
+				title: `🔔 Reminder: ${ctx.chore.title}`,
+				body:
+					ctx.chore.allowanceCents > 0
+						? payout > 0
+							? `Payout is down to ${formatCents(payout, currency)} — go do it!`
+							: 'No payout left for this one — do it anyway!'
+						: 'Time to get it done!',
+				url: '/dashboard'
+			});
+		}
+	})
 };

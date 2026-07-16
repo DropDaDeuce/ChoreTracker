@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import NotificationSetup from '$lib/components/NotificationSetup.svelte';
 	import { formatCents } from '$lib/money';
 
 	let { data, form } = $props();
@@ -42,6 +43,38 @@
 
 	{#if form?.message}
 		<p class="rounded-lg bg-red-50 p-3 text-sm font-medium text-red-700">{form.message}</p>
+	{/if}
+
+	<NotificationSetup vapidPublicKey={data.vapidPublicKey} />
+
+	{#if data.swaps.incoming.length > 0}
+		<section>
+			<h2 class="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">
+				Swap requests for you
+			</h2>
+			<ul class="space-y-3">
+				{#each data.swaps.incoming as { swap, choreTitle, dueDate, fromName } (swap.id)}
+					<li class="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-violet-200 bg-white p-4 shadow-sm">
+						<div class="min-w-0 flex-1">
+							<p class="font-semibold text-slate-800">🔁 {fromName} asks: can you take this?</p>
+							<p class="text-sm text-slate-500">{choreTitle} — due {dueDate}</p>
+						</div>
+						<form method="POST" action="?/acceptSwap" use:enhance>
+							<input type="hidden" name="swapId" value={swap.id} />
+							<button class="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white">
+								I'll take it
+							</button>
+						</form>
+						<form method="POST" action="?/declineSwap" use:enhance>
+							<input type="hidden" name="swapId" value={swap.id} />
+							<button class="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-600">
+								Can't
+							</button>
+						</form>
+					</li>
+				{/each}
+			</ul>
+		</section>
 	{/if}
 
 	<section>
@@ -99,12 +132,63 @@
 							>
 								Done ✓
 							</button>
+							{#if data.swapPeople.length > 0 && !data.swaps.outgoing.some((s) => s.swap.instanceId === instance.id)}
+								<details class="text-right">
+									<summary class="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
+										↔ ask to swap
+									</summary>
+									<div class="mt-2 flex items-center gap-1.5">
+										<select
+											name="toUserId"
+											form="swap-{instance.id}"
+											class="rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
+										>
+											{#each data.swapPeople as person (person.id)}
+												<option value={person.id}>{person.name}</option>
+											{/each}
+										</select>
+										<button
+											form="swap-{instance.id}"
+											class="rounded-lg bg-violet-100 px-2.5 py-1.5 text-xs font-semibold text-violet-700"
+										>
+											Ask
+										</button>
+									</div>
+								</details>
+							{/if}
 						</form>
+						{#if data.swapPeople.length > 0}
+							<form id="swap-{instance.id}" method="POST" action="?/requestSwap" use:enhance class="hidden">
+								<input type="hidden" name="instanceId" value={instance.id} />
+							</form>
+						{/if}
 					</li>
 				{/each}
 			</ul>
 		{/if}
 	</section>
+
+	{#if data.swaps.outgoing.length > 0}
+		<section>
+			<h2 class="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">
+				Your swap requests
+			</h2>
+			<ul class="space-y-2">
+				{#each data.swaps.outgoing as { swap, choreTitle, dueDate, toName } (swap.id)}
+					<li class="flex items-center gap-3 rounded-xl bg-white/70 p-3 text-sm shadow-sm">
+						<span>🔁</span>
+						<span class="flex-1 text-slate-700">
+							Asked {toName} to take {choreTitle} ({dueDate})
+						</span>
+						<form method="POST" action="?/cancelSwap" use:enhance>
+							<input type="hidden" name="swapId" value={swap.id} />
+							<button class="text-xs font-medium text-slate-400 hover:text-slate-700">Cancel</button>
+						</form>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 
 	{#if data.awaiting.length > 0}
 		<section>

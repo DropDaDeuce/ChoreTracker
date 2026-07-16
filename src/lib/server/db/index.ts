@@ -12,8 +12,10 @@ const databasePath = process.env.DATABASE_PATH || './data/chores.db';
 // first run so a fresh checkout boots without manual setup.
 mkdirSync(dirname(databasePath), { recursive: true });
 
-const sqlite = new Database(databasePath);
+/** Raw better-sqlite3 handle — needed for the online-backup API. */
+export const sqlite = new Database(databasePath);
 sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
 
 export const db = drizzle(sqlite, { schema });
+export { databasePath };

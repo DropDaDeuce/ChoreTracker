@@ -89,9 +89,10 @@ export function undoMarkDone(db: DB, instanceId: number, actor: { id: number; ro
 	}
 
 	if (instance.status === 'verified' && !chore.requiresVerification) {
+		// >= so a window of 0 minutes means auto-verified chores can't be undone.
 		const windowMinutes = getSettingInt(db, UNDO_WINDOW_MINUTES_KEY, 15);
 		const verifiedAt = instance.verifiedAt?.getTime() ?? 0;
-		if (Date.now() - verifiedAt > windowMinutes * 60_000) {
+		if (windowMinutes <= 0 || Date.now() - verifiedAt >= windowMinutes * 60_000) {
 			throw new InstanceActionError('Too late to undo this one.');
 		}
 		db.transaction((tx) => {
@@ -198,6 +199,32 @@ export function balanceCents(db: DB, userId: number): number {
 		.where(eq(allowanceLedger.userId, userId))
 		.get();
 	return row?.total ?? 0;
+}
+
+/** Adult grants a bonus or applies a penalty outside the chore flow. */
+export function addAdjustment(
+	db: DB,
+	userId: number,
+	adultId: number,
+	type: 'bonus' | 'penalty',
+	amountCents: number,
+	note: string
+): void {
+	if (!Number.isInteger(amountCents) || amountCents <= 0) {
+		throw new InstanceActionError('Amount must be more than zero.');
+	}
+	const target = db.select().from(users).where(eq(users.id, userId)).get();
+	if (!target) throw new InstanceActionError('Person not found.');
+
+	db.insert(allowanceLedger)
+		.values({
+			userId,
+			type,
+			amountCents: type === 'bonus' ? amountCents : -amountCents,
+			note: note.trim() || (type === 'bonus' ? 'Bonus' : 'Penalty'),
+			createdBy: adultId
+		})
+		.run();
 }
 
 /** Adult pays out a kid's full balance: appends a negative `payout` row. */

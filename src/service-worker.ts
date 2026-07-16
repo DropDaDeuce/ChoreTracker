@@ -29,6 +29,34 @@ sw.addEventListener('activate', (event) => {
 	);
 });
 
+sw.addEventListener('push', (event) => {
+	let data: { title?: string; body?: string; url?: string } = {};
+	try {
+		data = event.data?.json() ?? {};
+	} catch {
+		// Malformed payload — show a generic nudge instead of nothing.
+	}
+	event.waitUntil(
+		sw.registration.showNotification(data.title ?? 'ChoreTracker', {
+			body: data.body ?? '',
+			icon: '/icons/icon-192.png',
+			badge: '/icons/icon-192.png',
+			data: { url: data.url ?? '/' }
+		})
+	);
+});
+
+sw.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+	const url = (event.notification.data as { url?: string })?.url ?? '/';
+	event.waitUntil(
+		sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+			const existing = clients.find((c) => 'focus' in c);
+			return existing ? existing.focus().then((c) => c.navigate?.(url)) : sw.clients.openWindow(url);
+		})
+	);
+});
+
 sw.addEventListener('fetch', (event) => {
 	if (event.request.method !== 'GET') return;
 	const url = new URL(event.request.url);

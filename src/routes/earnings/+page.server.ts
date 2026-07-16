@@ -1,7 +1,13 @@
 import { requireAdult, requireUser } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { allowanceLedger, choreInstances, chores, users } from '$lib/server/db/schema';
-import { balanceCents, InstanceActionError, payOutBalance } from '$lib/server/instances';
+import {
+	addAdjustment,
+	balanceCents,
+	InstanceActionError,
+	payOutBalance
+} from '$lib/server/instances';
+import { notifyUser } from '$lib/server/push';
 import { fail } from '@sveltejs/kit';
 import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
@@ -90,5 +96,26 @@ export const actions: Actions = {
 			if (err instanceof InstanceActionError) return fail(400, { message: err.message });
 			throw err;
 		}
+	},
+
+	adjust: async ({ request, locals }) => {
+		const adult = requireAdult(locals);
+		const form = await request.formData();
+		const kidId = Number(form.get('kidId'));
+		const type = form.get('type') === 'penalty' ? 'penalty' : 'bonus';
+		const amountCents = Math.round(Number(form.get('amount')) * 100);
+		const note = String(form.get('note') ?? '');
+		try {
+			addAdjustment(db, kidId, adult.id, type, amountCents, note);
+		} catch (err) {
+			if (err instanceof InstanceActionError) return fail(400, { message: err.message });
+			throw err;
+		}
+		notifyUser(db, kidId, {
+			title: type === 'bonus' ? '🎁 You got a bonus!' : '📉 A penalty was applied',
+			body: note.trim() || 'Check your earnings for details.',
+			url: '/earnings'
+		});
+		return { success: true };
 	}
 };

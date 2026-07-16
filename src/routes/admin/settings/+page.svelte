@@ -74,4 +74,14 @@
 			Save settings
 		</button>
 	</form>
+
+	<a
+		href="/admin/backup"
+		class="block rounded-2xl bg-white p-5 shadow-sm transition hover:shadow"
+	>
+		<p class="font-semibold text-slate-800">💾 Backup & restore</p>
+		<p class="mt-0.5 text-sm text-slate-500">
+			Download the whole household as one file, or restore from an earlier backup.
+		</p>
+	</a>
 </main>

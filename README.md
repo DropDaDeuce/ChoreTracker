@@ -5,9 +5,9 @@ A self-hosted household chore tracker for families. Runs on your own hardware
 phones, tablets, and laptops on your home network — no cloud, no accounts, no
 data leaving your house.
 
-> **Status:** the core app works — chores, rotation, verification, and the
-> allowance ledger are all functional. See [`docs/PLAN.md`](docs/PLAN.md) for
-> the full design and what's still on the roadmap.
+> **Status:** feature-complete across the planned roadmap — chores, rotation,
+> verification, allowance, calendar, photo proof, push reminders, swaps, and
+> backup/restore all work. See [`docs/PLAN.md`](docs/PLAN.md) for the design.
 
 ## Features
 
@@ -43,8 +43,15 @@ data leaving your house.
   `localhost`); on a plain-HTTP LAN it behaves as a home-screen shortcut,
   which works fine. Put a reverse proxy with HTTPS in front if you want the
   full experience.
-- **On the roadmap** — push reminders, chore swap requests, bonuses/penalties,
-  backup & restore.
+- **Push reminders** — opt in per device; reminders, verifications,
+  rejections, swaps, and bonuses ping the right person. (Same HTTPS caveat as
+  install — browsers require a secure context for push.)
+- **Swap requests** — "can you take this one?" Offer a chore to someone else;
+  they accept or decline from their dashboard.
+- **Bonuses & penalties** — adults can adjust a kid's ledger outside the
+  chore flow, with a reason.
+- **Backup & restore** — download the whole household (database + photos) as
+  one zip from the admin UI, and restore it later — even into a running app.
 
 ## Tech stack
 
