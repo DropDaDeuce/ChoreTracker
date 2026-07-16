@@ -1,0 +1,104 @@
+<script lang="ts">
+	import { MONTH_LABELS } from '$lib/choreText';
+
+	let { data } = $props();
+
+	const WEEKDAYS_MON = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+	const weekdayLabels = $derived(
+		data.weekStart === 'monday' ? WEEKDAYS_MON : ['Sun', ...WEEKDAYS_MON.slice(0, 6)]
+	);
+
+	// 0 = Monday … 6 = Sunday for the 1st of the month (Zeller-free via Date.UTC).
+	const firstWeekday = $derived((new Date(Date.UTC(data.year, data.month - 1, 1)).getUTCDay() + 6) % 7);
+	const leadingBlanks = $derived(
+		data.weekStart === 'monday' ? firstWeekday : (firstWeekday + 1) % 7
+	);
+
+	function dateOf(day: number): string {
+		return `${data.monthParam}-${String(day).padStart(2, '0')}`;
+	}
+
+	const statusIcon: Record<string, string> = {
+		verified: '✅',
+		done: '⏳',
+		missed: '😿'
+	};
+</script>
+
+<svelte:head>
+	<title>Calendar — ChoreTracker</title>
+</svelte:head>
+
+<main class="mx-auto max-w-5xl space-y-4 p-4 pb-16">
+	<div class="flex items-center justify-between pt-4">
+		<h1 class="text-2xl font-bold text-slate-800">
+			{MONTH_LABELS[data.month - 1]}
+			{data.year}
+		</h1>
+		<div class="flex gap-2">
+			<a href="/calendar?month={data.prev}" class="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm">←</a>
+			<a href="/calendar" class="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm">Today</a>
+			<a href="/calendar?month={data.next}" class="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm">→</a>
+		</div>
+	</div>
+
+	<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+		{#each data.people as person}
+			<span class="flex items-center gap-1.5">
+				<span class="h-2.5 w-2.5 rounded-full" style="background: {person.color}"></span>
+				{person.name}
+			</span>
+		{/each}
+		<span class="flex items-center gap-1.5">
+			<span class="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+			rotation (turn not decided yet)
+		</span>
+	</div>
+
+	<div class="overflow-x-auto">
+		<div class="grid min-w-[40rem] grid-cols-7 gap-1">
+			{#each weekdayLabels as label}
+				<div class="px-1 py-1 text-center text-xs font-semibold tracking-wide text-slate-400 uppercase">
+					{label}
+				</div>
+			{/each}
+
+			{#each Array(leadingBlanks) as _}
+				<div></div>
+			{/each}
+
+			{#each Array(data.daysInMonth) as _, i}
+				{@const date = dateOf(i + 1)}
+				{@const dayEntries = data.entries[date] ?? []}
+				<div
+					class="min-h-24 rounded-lg border p-1.5 {date === data.today
+						? 'border-slate-800 bg-white'
+						: 'border-slate-200 bg-white/70'}"
+				>
+					<p class="text-xs font-semibold {date === data.today ? 'text-slate-800' : 'text-slate-400'}">
+						{i + 1}
+					</p>
+					<ul class="mt-1 space-y-0.5">
+						{#each dayEntries as entry}
+							<li
+								class="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] leading-tight {entry.mine
+									? 'bg-slate-100 font-semibold'
+									: ''} {entry.status === 'planned' ? 'opacity-60' : ''}"
+								title="{entry.title}{entry.personName ? ` — ${entry.personName}` : ' — rotation'}"
+							>
+								<span
+									class="h-2 w-2 shrink-0 rounded-full"
+									style="background: {entry.color ?? '#cbd5e1'}"
+								></span>
+								<span class="truncate text-slate-700">
+									{statusIcon[entry.status] ?? ''}{entry.title}
+								</span>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/each}
+		</div>
+	</div>
+</main>

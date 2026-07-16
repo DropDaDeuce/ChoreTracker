@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { allowanceLedger, choreInstances, chores, users } from '$lib/server/db/schema';
 import { balanceCents, InstanceActionError, payOutBalance } from '$lib/server/instances';
 import { fail } from '@sveltejs/kit';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 function earningsFor(person: { id: number; name: string; avatarColor: string }) {
@@ -32,7 +32,34 @@ function earningsFor(person: { id: number; name: string; avatarColor: string }) 
 		.limit(20)
 		.all();
 
-	return { ...person, balance: balanceCents(db, person.id), ledger, recentChores };
+	// "This period" = everything earned since the most recent payout.
+	const lastPayout = db
+		.select({ createdAt: allowanceLedger.createdAt })
+		.from(allowanceLedger)
+		.where(and(eq(allowanceLedger.userId, person.id), eq(allowanceLedger.type, 'payout')))
+		.orderBy(desc(allowanceLedger.createdAt), desc(allowanceLedger.id))
+		.limit(1)
+		.get();
+	const earnedThisPeriod = db
+		.select({ total: sql<number>`coalesce(sum(${allowanceLedger.amountCents}), 0)` })
+		.from(allowanceLedger)
+		.where(
+			and(
+				eq(allowanceLedger.userId, person.id),
+				gt(allowanceLedger.amountCents, 0),
+				...(lastPayout ? [gt(allowanceLedger.createdAt, lastPayout.createdAt)] : [])
+			)
+		)
+		.get();
+
+	return {
+		...person,
+		balance: balanceCents(db, person.id),
+		ledger,
+		recentChores,
+		periodSince: lastPayout?.createdAt.toISOString().slice(0, 10) ?? null,
+		periodEarned: earnedThisPeriod?.total ?? 0
+	};
 }
 
 export const load: PageServerLoad = ({ locals }) => {

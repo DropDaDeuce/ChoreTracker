@@ -202,6 +202,16 @@ describe('guards', () => {
 		expect(() => verifyInstance(db, second.id, adult.id)).toThrow(InstanceActionError);
 	});
 
+	it('photo-required chores refuse markDone without a photo', () => {
+		const [first] = makeChore({ requiresPhoto: true });
+
+		expect(() => markDone(db, first.id, kid)).toThrow(InstanceActionError);
+
+		markDone(db, first.id, kid, 'abc123.jpg');
+		expect(reload(first.id).status).toBe('done');
+		expect(reload(first.id).photoPath).toBe('abc123.jpg');
+	});
+
 	it('reminders only apply to open chores', () => {
 		const [first] = makeChore();
 		markDone(db, first.id, kid);

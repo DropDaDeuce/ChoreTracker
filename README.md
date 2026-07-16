@@ -31,8 +31,20 @@ data leaving your house.
 - **Profile + PIN login** — a kid-friendly profile picker, no usernames or
   passwords; adult-only actions are role-gated server-side.
 - **Settings** — currency symbol, reminder penalty %, undo window, week start.
-- **On the roadmap** — calendar view, streaks & points leaderboard, photo
-  proof, PWA install, and push reminders.
+- **Calendar** — month view color-coded per person, including planned future
+  occurrences.
+- **Streaks & leaderboard** — completion streaks and weekly/monthly/all-time
+  points standings.
+- **Photo proof** — chores can require a camera photo before they count;
+  parents see it in the verify queue.
+- **CSV export** — download any kid's full allowance history.
+- **Installable (PWA)** — add it to a phone's home screen with an app icon.
+  Note: browsers only offer full install + offline caching over HTTPS (or
+  `localhost`); on a plain-HTTP LAN it behaves as a home-screen shortcut,
+  which works fine. Put a reverse proxy with HTTPS in front if you want the
+  full experience.
+- **On the roadmap** — push reminders, chore swap requests, bonuses/penalties,
+  backup & restore.
 
 ## Tech stack
 

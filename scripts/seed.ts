@@ -64,7 +64,8 @@ async function main() {
 				frequency: 'weekly',
 				weekdayMask: (1 << 0) | (1 << 3), // Mon + Thu
 				allowanceCents: 100,
-				points: 10
+				points: 10,
+				requiresPhoto: true
 			},
 			assignees: ['Riley']
 		},

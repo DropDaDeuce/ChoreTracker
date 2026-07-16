@@ -16,6 +16,11 @@
 			<p class="text-sm text-slate-500">{data.today}</p>
 		</div>
 		<div class="flex gap-2">
+			{#if data.streak >= 2}
+				<span class="rounded-full bg-orange-100 px-4 py-1.5 text-sm font-semibold text-orange-700">
+					🔥 {data.streak}-day streak
+				</span>
+			{/if}
 			{#if data.balance > 0 || data.user?.role === 'kid'}
 				<a
 					href="/earnings"
@@ -68,8 +73,27 @@
 								{/if}
 							</p>
 						</div>
-						<form method="POST" action="?/markDone" use:enhance>
+						<form
+							method="POST"
+							action="?/markDone"
+							enctype="multipart/form-data"
+							use:enhance
+							class="flex flex-col items-end gap-2"
+						>
 							<input type="hidden" name="instanceId" value={instance.id} />
+							{#if chore.requiresPhoto}
+								<label class="text-right">
+									<span class="mb-1 block text-[11px] font-medium text-slate-500">📷 photo proof</span>
+									<input
+										type="file"
+										name="photo"
+										accept="image/*"
+										capture="environment"
+										required
+										class="w-36 text-xs text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-200 file:px-2 file:py-1.5 file:text-xs file:font-semibold"
+									/>
+								</label>
+							{/if}
 							<button
 								class="rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white shadow active:bg-emerald-700"
 							>

@@ -29,6 +29,9 @@ USER node
 
 ENV PORT=3000
 ENV DATABASE_PATH=/app/data/chores.db
+# Photo-proof uploads come through form posts; the adapter default (512kb)
+# would reject phone photos.
+ENV BODY_SIZE_LIMIT=10M
 EXPOSE 3000
 
 CMD ["node", "build"]

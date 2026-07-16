@@ -49,6 +49,13 @@ export function daysInMonth(year: number, month: number): number {
 	return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
+/** Most recent Monday/Sunday on or before `date`. */
+export function startOfWeek(date: string, weekStart: 'monday' | 'sunday'): string {
+	const weekday = isoWeekday(date); // 0 = Monday … 6 = Sunday
+	const offset = weekStart === 'monday' ? weekday : (weekday + 1) % 7;
+	return addDays(date, -offset);
+}
+
 export function yearOf(date: string): number {
 	return Number(date.slice(0, 4));
 }

@@ -10,6 +10,7 @@ import {
 } from '$lib/server/instances';
 import { computePayoutCents } from '$lib/server/payout';
 import { getSettingInt, REMINDER_PENALTY_PERCENT_KEY } from '$lib/server/settings';
+import { deletePhoto } from '$lib/server/uploads';
 import { fail } from '@sveltejs/kit';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
@@ -68,6 +69,14 @@ function instanceAction(fn: (instanceId: number, adultId: number) => void): NonN
 
 export const actions: Actions = {
 	verify: instanceAction((id, adultId) => verifyInstance(db, id, adultId)),
-	reject: instanceAction((id, adultId) => rejectInstance(db, id, adultId)),
+	reject: instanceAction((id, adultId) => {
+		const before = db
+			.select({ photoPath: choreInstances.photoPath })
+			.from(choreInstances)
+			.where(eq(choreInstances.id, id))
+			.get();
+		rejectInstance(db, id, adultId);
+		deletePhoto(before?.photoPath); // redo means fresh proof
+	}),
 	remind: instanceAction((id, adultId) => addReminder(db, id, adultId))
 };

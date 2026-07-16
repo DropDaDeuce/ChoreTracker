@@ -12,4 +12,6 @@ services:
       - SESSION_SECRET=change-me
       # Set to the URL your family actually uses (hostname or LAN IP).
       - ORIGIN=http://home-server.local:3000
+      # Max upload size (photo proof).
+      - BODY_SIZE_LIMIT=10M
     restart: unless-stopped

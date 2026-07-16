@@ -43,6 +43,13 @@
 				<div class="flex-1">
 					<h2 class="font-semibold text-slate-800">{person.name}</h2>
 					<p class="text-2xl font-bold text-emerald-700">{formatCents(person.balance, data.currency)}</p>
+					<p class="text-xs text-slate-400">
+						{formatCents(person.periodEarned, data.currency)} earned
+						{person.periodSince ? `since payout on ${person.periodSince}` : 'all time'}
+						· <a href="/earnings/export?person={person.id}" class="underline hover:text-slate-600">
+							export CSV
+						</a>
+					</p>
 				</div>
 				{#if data.isAdult && person.balance > 0}
 					<form method="POST" action="?/payout" use:enhance>

@@ -31,7 +31,12 @@ function getInstanceWithChore(db: DB, instanceId: number) {
  * Mark an instance done. Allowed for the assignee themself or any adult.
  * When the chore needs no verification it is finalized (and paid) immediately.
  */
-export function markDone(db: DB, instanceId: number, actor: { id: number; role: string }): void {
+export function markDone(
+	db: DB,
+	instanceId: number,
+	actor: { id: number; role: string },
+	photoPath?: string
+): void {
 	const { instance, chore } = getInstanceWithChore(db, instanceId);
 	if (instance.status !== 'pending') {
 		throw new InstanceActionError('This chore is not open — it may already be done.');
@@ -39,10 +44,13 @@ export function markDone(db: DB, instanceId: number, actor: { id: number; role: 
 	if (actor.id !== instance.assigneeId && actor.role !== 'adult') {
 		throw new InstanceActionError('Only the assignee (or an adult) can mark this done.');
 	}
+	if (chore.requiresPhoto && !photoPath) {
+		throw new InstanceActionError('This chore needs a photo as proof.');
+	}
 
 	db.transaction((tx) => {
 		tx.update(choreInstances)
-			.set({ status: 'done', doneAt: new Date(), doneBy: actor.id })
+			.set({ status: 'done', doneAt: new Date(), doneBy: actor.id, photoPath: photoPath ?? null })
 			.where(eq(choreInstances.id, instanceId))
 			.run();
 		if (!chore.requiresVerification) {
@@ -70,7 +78,9 @@ export function undoMarkDone(db: DB, instanceId: number, actor: { id: number; ro
 		doneBy: null,
 		verifiedAt: null,
 		verifiedBy: null,
-		payoutCents: null
+		payoutCents: null,
+		pointsAwarded: null,
+		photoPath: null
 	};
 
 	if (instance.status === 'done') {
@@ -131,6 +141,7 @@ export function rejectInstance(db: DB, instanceId: number, adultId: number, note
 			status: 'pending',
 			doneAt: null,
 			doneBy: null,
+			photoPath: null,
 			verifiedAt: new Date(),
 			verifiedBy: adultId,
 			note: note?.trim() || instance.note
@@ -154,7 +165,13 @@ function finalizeVerification(tx: DB, instanceId: number, verifierId: number): v
 	);
 
 	tx.update(choreInstances)
-		.set({ status: 'verified', verifiedAt: new Date(), verifiedBy: verifierId, payoutCents })
+		.set({
+			status: 'verified',
+			verifiedAt: new Date(),
+			verifiedBy: verifierId,
+			payoutCents,
+			pointsAwarded: chore.points
+		})
 		.where(eq(choreInstances.id, instanceId))
 		.run();
 

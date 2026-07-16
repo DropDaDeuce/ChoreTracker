@@ -20,6 +20,7 @@
 		points: number;
 		allowanceDollars: number;
 		requiresVerification: boolean;
+		requiresPhoto: boolean;
 		graceDays: number;
 		assignmentType: 'fixed' | 'rotating';
 		/** Ordered pool; for fixed assignment only the first entry is used. */
@@ -309,6 +310,11 @@
 			class="h-4 w-4"
 		/>
 		<span class="text-sm text-slate-700">An adult must verify before it counts (and pays)</span>
+	</label>
+
+	<label class="flex items-center gap-2">
+		<input type="checkbox" name="requiresPhoto" checked={initial.requiresPhoto} class="h-4 w-4" />
+		<span class="text-sm text-slate-700">Require a photo as proof 📷</span>
 	</label>
 
 	{#if message}

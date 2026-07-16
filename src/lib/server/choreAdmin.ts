@@ -20,6 +20,7 @@ export function choreColumnsFromInput(input: ChoreInput) {
 		points: input.points,
 		allowanceCents: Math.round(input.allowance * 100),
 		requiresVerification: input.requiresVerification,
+		requiresPhoto: input.requiresPhoto,
 		graceDays: input.graceDays,
 		assignmentType: input.assignmentType
 	};

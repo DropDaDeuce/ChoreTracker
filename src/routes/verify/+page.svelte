@@ -60,6 +60,15 @@
 								</p>
 							</div>
 						</div>
+						{#if instance.photoPath}
+							<a href="/photos/{instance.photoPath}" target="_blank" class="mt-3 block w-fit">
+								<img
+									src="/photos/{instance.photoPath}"
+									alt="Proof for {chore.title}"
+									class="h-24 rounded-lg border border-slate-200 object-cover"
+								/>
+							</a>
+						{/if}
 						<div class="mt-3 flex flex-wrap gap-2">
 							<form method="POST" action="?/verify" use:enhance>
 								<input type="hidden" name="instanceId" value={instance.id} />

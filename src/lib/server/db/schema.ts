@@ -105,6 +105,8 @@ export const choreInstances = sqliteTable(
 		photoPath: text('photo_path'),
 		/** Frozen at verification so later config changes never rewrite history. */
 		payoutCents: integer('payout_cents'),
+		/** Frozen at verification, like payoutCents. */
+		pointsAwarded: integer('points_awarded'),
 		note: text('note'),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })
 			.notNull()

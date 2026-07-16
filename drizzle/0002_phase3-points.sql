@@ -1,0 +1,1 @@
+ALTER TABLE `chore_instances` ADD `points_awarded` integer;

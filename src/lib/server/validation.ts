@@ -26,6 +26,7 @@ export const choreSchema = z
 		/** Dollars in the form; converted to cents on save. */
 		allowance: z.coerce.number().min(0).max(1000).default(0),
 		requiresVerification: z.boolean().default(true),
+		requiresPhoto: z.boolean().default(false),
 		graceDays: z.coerce.number().int().min(0).max(30).default(0),
 		assignmentType: z.enum(['fixed', 'rotating']).default('fixed'),
 		/** Ordered: position 0 first. Fixed assignment uses just the first entry. */
@@ -75,6 +76,7 @@ export function choreFormToObject(form: FormData) {
 		points: form.get('points') || 0,
 		allowance: form.get('allowance') || 0,
 		requiresVerification: form.get('requiresVerification') === 'on',
+		requiresPhoto: form.get('requiresPhoto') === 'on',
 		graceDays: form.get('graceDays') || 0,
 		assignmentType: form.get('assignmentType') ?? 'fixed',
 		assigneeIds: form.getAll('assigneeIds')

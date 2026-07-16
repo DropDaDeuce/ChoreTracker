@@ -10,7 +10,9 @@
 			? [
 					{ href: '/dashboard', label: 'Today' },
 					{ href: '/chores', label: 'My chores' },
+					{ href: '/calendar', label: 'Calendar' },
 					{ href: '/earnings', label: 'Earnings' },
+					{ href: '/leaderboard', label: 'Stars' },
 					...(data.user.role === 'adult'
 						? [
 								{ href: '/verify', label: 'Verify' },

@@ -31,6 +31,7 @@
 			points: 0,
 			allowanceDollars: 0,
 			requiresVerification: true,
+			requiresPhoto: false,
 			graceDays: 0,
 			assignmentType: 'fixed',
 			assigneeIds: data.people[0] ? [data.people[0].id] : []

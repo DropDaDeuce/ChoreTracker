@@ -54,6 +54,7 @@
 			points: data.chore.points,
 			allowanceDollars: data.chore.allowanceCents / 100,
 			requiresVerification: data.chore.requiresVerification,
+			requiresPhoto: data.chore.requiresPhoto,
 			graceDays: data.chore.graceDays,
 			assignmentType: data.chore.assignmentType,
 			assigneeIds: data.assigneeIds

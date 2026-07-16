@@ -9,6 +9,8 @@ import {
 	undoMarkDone
 } from '$lib/server/instances';
 import { getSettingInt, UNDO_WINDOW_MINUTES_KEY } from '$lib/server/settings';
+import { currentStreak } from '$lib/server/stats';
+import { deletePhoto, savePhoto, UploadError } from '$lib/server/uploads';
 import { fail } from '@sveltejs/kit';
 import { and, asc, desc, eq, gt, gte, lte, sql } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
@@ -72,28 +74,51 @@ export const load: PageServerLoad = ({ locals }) => {
 		missed,
 		completedToday,
 		balance: balanceCents(db, user.id),
+		streak: currentStreak(db, user.id, today),
 		verifyQueueCount
 	};
 };
 
-function instanceAction(
-	fn: (instanceId: number, actor: { id: number; role: string }) => void
-): NonNullable<Actions[string]> {
-	return async ({ request, locals }) => {
+export const actions: Actions = {
+	markDone: async ({ request, locals }) => {
 		const user = requireUser(locals);
 		const form = await request.formData();
 		const instanceId = Number(form.get('instanceId'));
+
+		// Save the proof photo (if any) first; roll it back if the action fails.
+		const upload = form.get('photo');
+		let photoName: string | undefined;
 		try {
-			fn(instanceId, user);
+			if (upload instanceof File && upload.size > 0) {
+				photoName = await savePhoto(upload);
+			}
+			markDone(db, instanceId, user, photoName);
+		} catch (err) {
+			deletePhoto(photoName);
+			if (err instanceof InstanceActionError || err instanceof UploadError) {
+				return fail(400, { message: err.message });
+			}
+			throw err;
+		}
+		return { success: true };
+	},
+
+	undo: async ({ request, locals }) => {
+		const user = requireUser(locals);
+		const form = await request.formData();
+		const instanceId = Number(form.get('instanceId'));
+		const before = db
+			.select({ photoPath: choreInstances.photoPath })
+			.from(choreInstances)
+			.where(eq(choreInstances.id, instanceId))
+			.get();
+		try {
+			undoMarkDone(db, instanceId, user);
 		} catch (err) {
 			if (err instanceof InstanceActionError) return fail(400, { message: err.message });
 			throw err;
 		}
+		deletePhoto(before?.photoPath);
 		return { success: true };
-	};
-}
-
-export const actions: Actions = {
-	markDone: instanceAction((id, actor) => markDone(db, id, actor)),
-	undo: instanceAction((id, actor) => undoMarkDone(db, id, actor))
+	}
 };
