@@ -83,8 +83,8 @@
 			<h1 class="text-2xl font-bold text-slate-800">{data.person.name} — days at home</h1>
 		</div>
 		<p class="mt-2 text-sm text-slate-500">
-			Click a day to flip it. Right-click (or use the pattern form below) for repeating
-			schedules. No chores are assigned on away days — rotations skip to whoever's home.
+			Tap a day to flip it. Right-click / long-press (or use the pattern form below) for
+			repeating schedules. No chores are assigned on away days — rotations skip to whoever's home.
 		</p>
 	</div>
 
@@ -217,7 +217,7 @@
 		{@const target = d.home ? 'Away' : 'Home'}
 		<div
 			class="fixed z-50 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
-			style="left: {Math.min(menu.x, 1000)}px; top: {menu.y}px"
+			style="left: min({menu.x}px, calc(100vw - 16.5rem)); top: min({menu.y}px, calc(100dvh - 15rem))"
 		>
 			<p class="px-3 py-1.5 text-xs font-semibold text-slate-400">{d.date} — {d.home ? 'home' : 'away'}</p>
 			<button type="button" class="block w-full px-3 py-1.5 text-left text-sm hover:bg-slate-100" onclick={() => clickDay(d)}>

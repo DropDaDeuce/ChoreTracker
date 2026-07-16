@@ -1,1 +1,32 @@
 @import 'tailwindcss';
+
+/* Horizontal scroll strips (mobile nav) scroll without showing a scrollbar. */
+@utility no-scrollbar {
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+@layer base {
+	/* Taps act immediately — no double-tap-zoom delay on interactive elements. */
+	a,
+	button,
+	label,
+	input,
+	select,
+	textarea,
+	summary {
+		touch-action: manipulation;
+	}
+
+	/* iOS Safari zooms the whole page when focusing a control with font-size < 16px.
+	   On phone-sized screens, floor form controls at 16px to prevent that. */
+	@media (max-width: 40rem) {
+		input,
+		select,
+		textarea {
+			font-size: max(16px, 1em);
+		}
+	}
+}

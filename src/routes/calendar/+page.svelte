@@ -19,6 +19,10 @@
 		return `${data.monthParam}-${String(day).padStart(2, '0')}`;
 	}
 
+	function weekdayShort(day: number): string {
+		return WEEKDAYS_MON[(firstWeekday + day - 1) % 7];
+	}
+
 	const statusIcon: Record<string, string> = {
 		verified: '✅',
 		done: '⏳',
@@ -56,7 +60,56 @@
 		</span>
 	</div>
 
-	<div class="overflow-x-auto">
+	<!-- Phones: agenda list — only days that have something (today always shows). -->
+	<div class="space-y-2 sm:hidden">
+		{#each Array(data.daysInMonth) as _, i}
+			{@const date = dateOf(i + 1)}
+			{@const dayEntries = data.entries[date] ?? []}
+			{#if dayEntries.length > 0 || date === data.today}
+				<div
+					class="rounded-xl border p-3 {date === data.today
+						? 'border-slate-800 bg-white'
+						: 'border-slate-200 bg-white/70'}"
+				>
+					<p
+						class="text-xs font-semibold tracking-wide uppercase {date === data.today
+							? 'text-slate-800'
+							: 'text-slate-400'}"
+					>
+						{weekdayShort(i + 1)}
+						{i + 1}{date === data.today ? ' · today' : ''}
+					</p>
+					{#if dayEntries.length === 0}
+						<p class="mt-1 text-sm text-slate-400">Nothing due.</p>
+					{:else}
+						<ul class="mt-1.5 space-y-1">
+							{#each dayEntries as entry}
+								<li
+									class="flex items-center gap-2 text-sm {entry.status === 'planned'
+										? 'opacity-60'
+										: ''}"
+								>
+									<span
+										class="h-2.5 w-2.5 shrink-0 rounded-full"
+										style="background: {entry.color ?? '#cbd5e1'}"
+									></span>
+									<span class="min-w-0 flex-1 truncate text-slate-700 {entry.mine ? 'font-semibold' : ''}">
+										{statusIcon[entry.status] ?? ''}{entry.title}
+									</span>
+									<span class="shrink-0 text-xs text-slate-400">
+										{entry.personName ?? 'rotation'}
+									</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			{/if}
+		{/each}
+	</div>
+
+	<!-- Tablet/desktop: month grid. -->
+	<div class="hidden overflow-x-auto sm:block">
 		<div class="grid min-w-[40rem] grid-cols-7 gap-1">
 			{#each weekdayLabels as label}
 				<div class="px-1 py-1 text-center text-xs font-semibold tracking-wide text-slate-400 uppercase">
