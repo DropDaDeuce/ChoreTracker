@@ -68,25 +68,19 @@ data leaving your house.
 
 ## Getting started
 
-> These commands describe the intended setup as the app is built out.
+Zero configuration required — no .env needed for a normal LAN setup.
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Configure your environment
-cp .env.example .env
-#   then edit .env — at minimum set a strong SESSION_SECRET
-
-# 3. Set up the database
-npm run db:migrate
-
-# 4. Run in development (hot reload)
+# 2. Run in development (hot reload; the database creates itself)
 npm run dev
 ```
 
 Open the app at the URL printed in your terminal (default
-`http://localhost:5173` in dev).
+`http://localhost:5173` in dev). The first visit walks you through creating
+the first adult account.
 
 ### Running at home (production)
 
@@ -95,13 +89,19 @@ npm run build
 node build      # migrations run on boot; the scheduler starts automatically
 ```
 
+On Windows, `ChoreTracker.cmd` gives you a control panel for all of this,
+including a one-click deploy that keeps a separate production folder updated.
+
 ### Docker (recommended for a home server)
 
 ```bash
 docker compose up -d
 ```
 
-Then open `http://<your-server-ip>:3000` from any device on your LAN.
+Then open `http://<your-server-ip>:3000` from any device on your LAN — note
+**http://**, not https:// (phones like to silently add the s; type it out or
+bookmark it). The app works from `localhost`, the LAN IP, and a hostname at
+the same time.
 
 ## Backups
 

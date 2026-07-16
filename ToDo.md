@@ -31,6 +31,8 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 
 ## Done
 
+* **2026-07-15 — Multi-host LAN access fixed (first real deployment feedback).** Phone at `http://<LAN-IP>:3000` would 403 on login: kit's CSRF check needs ONE fixed ORIGIN, and without ORIGIN adapter-node assumes **https** for the derived origin, failing every plain-HTTP form post. Replaced with our own same-host check in hooks.server.ts (`csrf.checkOrigin: false`); verified logins via 127.0.0.1, localhost, AND the real LAN IP with cross-site posts still blocked; ORIGIN removed from panel/compose/docs. Panel Stop button can now stop servers it didn't start (finds the node PID on the port, confirms, kill-tree). Reminder surfaced for users: type `http://`, phones auto-upgrade to https → ERR_SSL_PROTOCOL_ERROR.
+
 * **2026-07-15 — Presence ("Days at home") for split households + deploy tool.**
   * Presence calendar per person (People → Days at home): click a day to flip home/away, right-click for patterns (away/home every X, every other X with anchor date, Nth of month), pattern list with remove + a form fallback for mobile. Day overrides beat rules; newest rule wins; default home.
   * Engine: generation skips away people (fixed chores skip the day; rotations hand the turn to whoever's home, skip the day if nobody is); presence changes drop future pending instances on away days and regenerate (history untouched); swaps refuse away targets; kid dashboard shows an away banner; People page shows away-today.

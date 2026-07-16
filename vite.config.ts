@@ -13,6 +13,11 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 
+			// Kit's built-in check needs a single fixed ORIGIN, but this app is
+			// reached as localhost, a LAN IP, AND a hostname at once. We enforce
+			// the equivalent same-host check ourselves in hooks.server.ts.
+			csrf: { checkOrigin: false },
+
 			adapter: adapter()
 		})
 	]

@@ -8,10 +8,10 @@ services:
       - ./data:/app/data
     environment:
       - DATABASE_PATH=/app/data/chores.db
-      # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-      - SESSION_SECRET=change-me
-      # Set to the URL your family actually uses (hostname or LAN IP).
-      - ORIGIN=http://home-server.local:3000
       # Max upload size (photo proof).
       - BODY_SIZE_LIMIT=10M
+      # Set to your local timezone so chores roll over at YOUR midnight.
+      - TZ=America/Los_Angeles
+      # ORIGIN is not needed (the app does a same-host CSRF check, so
+      # localhost, the LAN IP, and a hostname all work at once).
     restart: unless-stopped

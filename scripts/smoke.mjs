@@ -3,7 +3,7 @@
 // Usage (from the repo root):
 //   npm run build
 //   rm -rf data && npm run seed
-//   PORT=3010 ORIGIN=http://localhost:3010 BODY_SIZE_LIMIT=10M node build   (in another terminal)
+//   PORT=3010 BODY_SIZE_LIMIT=10M node build   (in another terminal)
 //   npm run smoke
 //
 // NOTE: mutates the database (marks chores done, pays out, restores a

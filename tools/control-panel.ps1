@@ -217,8 +217,9 @@ function Start-Server {
     $psi.WorkingDirectory = $root
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
+    # No ORIGIN: the app does its own same-host CSRF check, so it works from
+    # localhost, the LAN IP, and a hostname at the same time.
     $psi.EnvironmentVariables['PORT'] = $port
-    $psi.EnvironmentVariables['ORIGIN'] = "http://localhost:$port"
     $psi.EnvironmentVariables['BODY_SIZE_LIMIT'] = '10M'
     $script:serverProc = [System.Diagnostics.Process]::Start($psi)
     Write-Output-Box "Server starting on http://localhost:$port (log: $serverLog)"
@@ -230,8 +231,37 @@ function Stop-Server {
         & taskkill /PID $script:serverProc.Id /T /F | Out-Null
         $script:serverProc = $null
         Write-Output-Box 'Server stopped.'
-    } else {
-        Write-Output-Box 'This panel did not start the running server - stop it where it was started (or stop the Docker container / service).'
+        Update-Health
+        return
+    }
+
+    # Not ours (e.g. the panel was reopened): find whoever owns the port.
+    $port = [int]$portBox.Text.Trim()
+    $owners = @()
+    try {
+        $owners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
+            Select-Object -ExpandProperty OwningProcess -Unique
+    } catch { }
+    if ($owners.Count -eq 0) {
+        Write-Output-Box "Nothing is listening on port $port."
+        Update-Health
+        return
+    }
+
+    foreach ($ownerPid in $owners) {
+        $proc = Get-Process -Id $ownerPid -ErrorAction SilentlyContinue
+        if (-not $proc) { continue }
+        if ($proc.ProcessName -ne 'node') {
+            Write-Output-Box "Port $port is owned by '$($proc.ProcessName)' (PID $ownerPid) - not a node server, refusing to kill it."
+            continue
+        }
+        $answer = [System.Windows.Forms.MessageBox]::Show(
+            "Stop the node server (PID $ownerPid) listening on port $port? It was started outside this panel session.",
+            'Stop server', 'YesNo', 'Question')
+        if ($answer -eq 'Yes') {
+            & taskkill /PID $ownerPid /T /F | Out-Null
+            Write-Output-Box "Stopped node PID $ownerPid."
+        }
     }
     Update-Health
 }
