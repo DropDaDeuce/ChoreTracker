@@ -66,11 +66,49 @@ foreach ($f in $files) {
     if (Test-Path $from) { Copy-Item $from (Join-Path $Target $f) -Force }
 }
 
-Step 'Installing dependencies (npm ci) — first run takes a minute'
+# npm ci wipes node_modules; only run it when the lockfile actually changed,
+# and never while a server in the target holds the native modules locked
+# (a running node locks better_sqlite3.node -> half-deleted install).
+$lockHash = (Get-FileHash (Join-Path $Target 'package-lock.json') -Algorithm SHA256).Hash
+$stampFile = Join-Path $Target '.deploy-lock-hash'
+$needCi = $true
+if ((Test-Path $stampFile) -and (Get-Content $stampFile -First 1) -eq $lockHash -and
+    (Test-Path (Join-Path $Target 'node_modules\better-sqlite3\lib\index.js'))) {
+    $needCi = $false
+    Step 'Dependencies unchanged - skipping npm ci'
+}
+
+if ($needCi) {
+    $nativeLib = Join-Path $Target 'node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+    if (Test-Path $nativeLib) {
+        try {
+            $fs = [System.IO.File]::Open($nativeLib, 'Open', 'ReadWrite', 'None')
+            $fs.Close()
+        } catch {
+            throw ("A server appears to be RUNNING from $Target (its native modules are locked). " +
+                   'Stop it (control panel -> Stop server), then deploy again.')
+        }
+    }
+}
+
 Push-Location $Target
 try {
-    cmd /c 'npm ci --no-audit --no-fund'
-    if ($LASTEXITCODE -ne 0) { throw "npm ci failed (exit $LASTEXITCODE)" }
+    if ($needCi) {
+        Step 'Installing dependencies (npm ci) - takes a minute'
+        cmd /c 'npm ci --no-audit --no-fund'
+        if ($LASTEXITCODE -ne 0) { throw "npm ci failed (exit $LASTEXITCODE)" }
+        $sentinels = @(
+            'node_modules\better-sqlite3\lib\index.js',
+            'node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+        )
+        foreach ($sentinel in $sentinels) {
+            if (-not (Test-Path (Join-Path $Target $sentinel))) {
+                throw ("npm ci finished but node_modules looks broken ($sentinel missing). " +
+                       'Make sure no server is running from the target, delete its node_modules folder, and deploy again.')
+            }
+        }
+        Set-Content $stampFile $lockHash
+    }
 
     $dbPath = Join-Path $Target 'data\chores.db'
     if ($Seed -and -not (Test-Path $dbPath)) {

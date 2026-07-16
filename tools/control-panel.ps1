@@ -191,6 +191,23 @@ function Start-Deploy {
         Write-Output-Box "Production target saved: $target (stored in .deploy-target)"
     }
 
+    # Deploying over a RUNNING server corrupts node_modules (locked native
+    # modules) - offer to stop whatever is on the configured port first.
+    $port = $portBox.Text.Trim()
+    $running = $false
+    try {
+        $resp = Invoke-WebRequest "http://127.0.0.1:$port/healthz" -UseBasicParsing -TimeoutSec 2
+        if ($resp.StatusCode -eq 200) { $running = $true }
+    } catch { }
+    if ($running) {
+        $answer = [System.Windows.Forms.MessageBox]::Show(
+            "A server is running on port $port. Deploying while it runs can corrupt the production install.`n`nStop it and continue?",
+            'Deploy', 'YesNo', 'Warning')
+        if ($answer -ne 'Yes') { return }
+        Stop-Server
+        Start-Sleep -Seconds 2
+    }
+
     $seedFlag = ''
     if (-not (Test-Path (Join-Path $target 'data\chores.db'))) {
         $answer = [System.Windows.Forms.MessageBox]::Show(
