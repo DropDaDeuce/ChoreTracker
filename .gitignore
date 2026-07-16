@@ -17,6 +17,9 @@ uploads/
 .env.*
 !.env.example
 
+# Local deploy-target path for tools/deploy.ps1 (machine-specific)
+.deploy-target
+
 # Backups / exports that may contain real data
 *.bak
 backups/

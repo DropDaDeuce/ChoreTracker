@@ -48,7 +48,7 @@ function New-Button($text, $x, $y, $w, $onClick) {
 # Status row
 $statusDot = New-Label ([char]0x25CF) 12 12 20 $true
 $statusLabel = New-Label 'Checking...' 34 12 320 $true
-$lblPort = New-Label 'Port:' 370 14 34 $false
+New-Label 'Port:' 370 14 34 $false | Out-Null
 $portBox = New-Object System.Windows.Forms.TextBox
 $portBox.Text = '3000'
 $portBox.Location = New-Object System.Drawing.Point(404, 10)
@@ -109,6 +109,7 @@ $btnSmoke = New-Button 'Smoke test' 456 238 100 {
         'Smoke test', 'YesNo', 'Warning')
     if ($answer -eq 'Yes') { Run-Npm 'run smoke' }
 }
+$btnDeploy = New-Button 'Deploy / update production' 562 238 170 { Start-Deploy }
 
 # Output box
 New-Label 'OUTPUT' 12 278 200 $true | Out-Null
@@ -123,7 +124,7 @@ $out.ForeColor = [System.Drawing.Color]::FromArgb(220, 228, 238)
 $form.Controls.Add($out)
 
 $allButtons = @($btnStart, $btnStop, $btnOpen, $btnLog, $btnDev, $btnStatus, $btnDoctor, $btnBackup,
-                $btnUsers, $btnPrune, $btnChkpt, $btnPin, $btnBuild, $btnCheck, $btnTest, $btnSeed, $btnSmoke)
+                $btnUsers, $btnPrune, $btnChkpt, $btnPin, $btnBuild, $btnCheck, $btnTest, $btnSeed, $btnSmoke, $btnDeploy)
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -173,6 +174,33 @@ function Pump-ToolOutput {
         Write-Output-Box "`r`n(done, exit code $code)"
         Set-Busy $false
     }
+}
+
+function Start-Deploy {
+    $targetFile = Join-Path $root '.deploy-target'
+    $target = $null
+    if (Test-Path $targetFile) { $target = (Get-Content $targetFile -First 1).Trim() }
+
+    if (-not $target) {
+        $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+        $dialog.Description = 'Pick (or create) the PRODUCTION folder - the family database will live there, separate from this dev checkout.'
+        if ($dialog.ShowDialog() -ne 'OK') { return }
+        $target = $dialog.SelectedPath
+        if ($target -eq $root) { Write-Output-Box 'Target must not be the dev folder itself.'; return }
+        Set-Content $targetFile $target
+        Write-Output-Box "Production target saved: $target (stored in .deploy-target)"
+    }
+
+    $seedFlag = ''
+    if (-not (Test-Path (Join-Path $target 'data\chores.db'))) {
+        $answer = [System.Windows.Forms.MessageBox]::Show(
+            "Fresh production folder. Seed the FAKE demo family (Alex/Sam/Riley)?`n`nNo = start empty; the first visit shows the create-first-adult setup screen (recommended for your real household).",
+            'First deploy', 'YesNoCancel', 'Question')
+        if ($answer -eq 'Cancel') { return }
+        if ($answer -eq 'Yes') { $seedFlag = ' -Seed' }
+    }
+
+    Run-Command ("powershell -NoProfile -ExecutionPolicy Bypass -File `"$root\tools\deploy.ps1`" -Target `"$target`"$seedFlag")
 }
 
 function Start-Server {
