@@ -119,6 +119,10 @@ mistakes and corruption, not a dead disk.
 
 ## Maintaining the server
 
+**Windows control panel:** double-click `ChoreTracker.cmd` for a GUI that
+attaches to the running server (or starts one), with buttons for every tool
+below plus build/test/dev actions. It works from any checkout of the repo.
+
 A small admin CLI ships with the app (run from the repo root on the server):
 
 ```bash

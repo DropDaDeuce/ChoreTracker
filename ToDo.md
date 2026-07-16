@@ -31,6 +31,8 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 
 ## Done
 
+* **2026-07-15 — Windows control panel (`ChoreTracker.cmd`).** WinForms GUI (PowerShell, zero deps, pure-ASCII .ps1 for PS 5.1): health-polled attach/start/stop of the server, buttons for the whole admin CLI (incl. reset-PIN with inputs), dev actions (build/check/test/seed/smoke with destructive-action confirms), streamed command output, server log viewer. Headless self-test hook (`CT_PANEL_TEST=1`). Gotcha fixed: health checks hit `127.0.0.1`, not `localhost` — adapter-node binds IPv4 while localhost resolves to `::1`.
+
 * **2026-07-15 — Ops tooling: admin CLI, nightly auto-backups, healthz.**
   * `npm run admin` — `status` / `doctor` (integrity, migrations, lockout risk, unassigned chores, photo bookkeeping, WAL size, disk free, TZ; exit 1 on failure) / `reset-pin` (the lockout rescue — verified live against a running server) / `list-users` / `backup` / `prune-backups` / `checkpoint`.
   * Nightly auto-backup in the scheduler → `data/backups`, retention via new `backup_keep_count` setting (Settings UI field; 0 disables). Shared `backup.ts` now backs the download route, CLI, and scheduler.
