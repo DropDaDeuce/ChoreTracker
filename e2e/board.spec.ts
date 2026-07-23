@@ -56,7 +56,20 @@ test('locked board bounces URL escapes back to the board', async ({ page }) => {
 	await page.getByRole('button', { name: "Let's go" }).click();
 	await page.waitForURL('**/dashboard');
 
-	// The visit hands the tablet back to the locked board in one tap.
+	// Opening the board DURING a visit auto-relocks — a visitor can never
+	// reach the Lock/exit controls to re-anchor the board to themselves.
+	await page.getByRole('link', { name: '📺 Board' }).click();
+	await expect(page.getByText(/locked — tap a face/)).toBeVisible();
+	await page.goto('/dashboard');
+	await page.waitForURL('**/board'); // still a locked kiosk
+
+	// And the Back-to-board button does the same from inside a visit.
+	await page.getByRole('button', { name: /Alex/ }).click();
+	for (const digit of '1234') {
+		await page.getByRole('button', { name: digit, exact: true }).click();
+	}
+	await page.getByRole('button', { name: "Let's go" }).click();
+	await page.waitForURL('**/dashboard');
 	await page.getByRole('button', { name: '📺 Back to board' }).click();
 	await page.waitForURL('**/board');
 	await expect(page.getByText(/locked — tap a face/)).toBeVisible();

@@ -64,7 +64,13 @@ export const load: PageServerLoad = ({ locals }) => {
 
 	return {
 		today,
-		me: { id: me.id, name: me.name, avatarColor: me.avatarColor, kiosk: me.kiosk },
+		me: {
+			id: me.id,
+			name: me.name,
+			avatarColor: me.avatarColor,
+			kiosk: me.kiosk,
+			kioskVisit: me.kioskVisit
+		},
 		people: family.map((person) => ({
 			...person,
 			...forUser(person.id),
@@ -92,7 +98,9 @@ export const actions: Actions = {
 		// From a LOCKED board this is a visit: full access for that person,
 		// but the device belongs to the board — a Back-to-board button and an
 		// idle timer return it to the locked state, no adult round-trip.
-		const kind = locals.user.kiosk ? 'kiosk_visit' : 'user';
+		// Kiosk-ness is STICKY: a switch made during a visit is another visit,
+		// so no PIN sequence on the tablet ever mints a permanent session.
+		const kind = locals.user.kiosk || locals.user.kioskVisit ? 'kiosk_visit' : 'user';
 		const oldToken = cookies.get(SESSION_COOKIE);
 		if (oldToken) destroySession(oldToken);
 		const { token, expiresAt } = createSession(user.id, kind);

@@ -14,6 +14,14 @@
 	let pin = $state('');
 
 	let now = $state(new Date());
+	let relockForm = $state<HTMLFormElement>();
+
+	// A kiosk VISIT opening the board is handing the tablet back: relock
+	// immediately, so a visitor never sees the unlocked Lock/exit controls
+	// and can never re-anchor the board to their own account.
+	$effect(() => {
+		if (data.me.kioskVisit) relockForm?.requestSubmit();
+	});
 
 	// Wall-tablet duties: tick the clock and refresh the data — but never
 	// while someone is mid-PIN (a refresh would eat their taps).
@@ -54,7 +62,7 @@
 		<div class="text-right">
 			<p class="text-3xl font-bold text-slate-700">{TIME_FMT.format(now)}</p>
 			<div class="mt-0.5 flex items-center justify-end gap-3 text-sm">
-				{#if data.me.kiosk}
+				{#if data.me.kiosk || data.me.kioskVisit}
 					<span class="font-medium text-slate-400">🔒 locked — tap a face to log in</span>
 				{:else}
 					<!-- Leaving ALWAYS costs a PIN — a parked tablet must never
@@ -156,11 +164,14 @@
 
 	<p class="text-center text-xs text-slate-400">
 		Tap your face to log in and mark things done. The board refreshes itself.
-		{#if !data.me.kiosk}
+		{#if !data.me.kiosk && !data.me.kioskVisit}
 			Parking this on a wall tablet? Tap 🔒 Lock so leaving always needs a PIN.
 		{/if}
 	</p>
 </main>
+
+<!-- Auto-relock target for kiosk visits (submitted from the effect above). -->
+<form bind:this={relockForm} method="POST" action="?/lock" class="hidden"></form>
 
 {#if switching}
 	<div

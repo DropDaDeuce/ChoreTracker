@@ -497,10 +497,30 @@ const visitSwitch = await post('/board?/switch', { userId: '2', pin: '1111' }, l
 check('PIN switch escapes the locked kiosk', visitSwitch.status === 303 && Boolean(visitSwitch.session));
 const visitDash = await get('/dashboard', visitSwitch.session);
 check('kiosk visit reaches the dashboard with a Back-to-board button', visitDash.status === 200 && visitDash.body.includes('Back to board'));
-const backToBoard = await post('/board?/lock', {}, visitSwitch.session);
+
+// A visit opening /board sees the LOCKED chrome — no Lock or exit controls
+// it could use to re-anchor the board to its own account.
+const visitBoard = await get('/board', visitSwitch.session);
+check('board renders locked to a kiosk visit', visitBoard.status === 200 && visitBoard.body.includes('locked — tap a face') && !visitBoard.body.includes('exit board'));
+
+// Kiosk-ness is sticky: a switch made DURING a visit is another visit.
+const visitSwitch2 = await post('/board?/switch', { userId: '3', pin: '2222' }, visitSwitch.session);
+check('switch during a visit succeeds', visitSwitch2.status === 303 && Boolean(visitSwitch2.session));
+const visit2Dash = await get('/dashboard', visitSwitch2.session);
+check('switch during a visit stays a visit (Back-to-board present)', visit2Dash.status === 200 && visit2Dash.body.includes('Back to board'));
+
+const backToBoard = await post('/board?/lock', {}, visitSwitch2.session);
 check('back-to-board relocks without a PIN', backToBoard.status === 303 && Boolean(backToBoard.session));
 const relockedDash = await get('/dashboard', backToBoard.session);
 check('relocked kiosk bounces to the board again', relockedDash.status === 303 && relockedDash.location === '/board');
+
+// Even /logout during a visit relocks the board instead of stranding the
+// tablet on the sign-in screen.
+const visitForLogout = await post('/board?/switch', { userId: '2', pin: '1111' }, backToBoard.session);
+const visitLogout = await post('/logout', {}, visitForLogout.session);
+check('logout during a visit returns to the board', visitLogout.status === 303 && Boolean(visitLogout.session));
+const postLogoutDash = await get('/dashboard', visitLogout.session);
+check('post-visit-logout session is a locked kiosk', postLogoutDash.status === 303 && postLogoutDash.location === '/board');
 
 // A switch from a NORMAL session stays a normal session (no Back-to-board).
 const normalDash = await get('/dashboard', goodSwitch.session);
