@@ -454,6 +454,20 @@ check(
 	presencePage.body.includes(`${today}: home`) && !presencePage.body.includes(`${today}: home (day override)`)
 );
 
+// 9b2. Chore deletion
+await post(
+	'/admin/chores/new?/custom',
+	{ title: 'Throwaway chore', frequency: 'daily', interval: '1', startDate: today, graceDays: '0', assignmentType: 'fixed' },
+	alex
+);
+let houseAfterCreate = await get('/admin/chores', alex);
+const throwawayId = houseAfterCreate.body.match(/href="\/admin\/chores\/(\d+)"[^>]*>[\s\S]{0,200}?Throwaway chore/)?.[1];
+check('throwaway chore created for deletion test', Boolean(throwawayId));
+const delRes = await post(`/admin/chores/${throwawayId}?/delete`, {}, alex);
+check('chore delete redirects', delRes.status === 303);
+houseAfterCreate = await get('/admin/chores', alex);
+check('deleted chore is gone from the house', !houseAfterCreate.body.includes('Throwaway chore'));
+
 // 9c. Family board + kiosk switch
 const familyBoard = await get('/board', sam);
 check('board renders for a kid with the whole family', familyBoard.status === 200 && familyBoard.body.includes('Family board') && familyBoard.body.includes('Alex') && familyBoard.body.includes('Riley'));

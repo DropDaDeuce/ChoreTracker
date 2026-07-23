@@ -5,6 +5,8 @@
 
 	let { data, form } = $props();
 
+	let confirmingDelete = $state(false);
+
 	const weekdays = $derived(
 		Array.from({ length: 7 }, (_, i) => i).filter((i) => data.chore.weekdayMask & (1 << i))
 	);
@@ -64,4 +66,42 @@
 			assigneeIds: data.assigneeIds
 		}}
 	/>
+
+	<section class="rounded-2xl border border-red-100 bg-red-50/50 p-5">
+		<h2 class="text-sm font-semibold text-red-800">Remove this chore</h2>
+		<p class="mt-1 text-sm text-slate-600">
+			{#if data.verifiedCount > 0}
+				Deleting also removes its {data.verifiedCount} completed
+				entr{data.verifiedCount === 1 ? 'y' : 'ies'} (and their points).
+				<span class="font-medium">Money already earned stays in the ledger.</span>
+				Prefer "Pause chore" above if you just want it off the schedule.
+			{:else}
+				It hasn't been completed yet, so nothing else is lost.
+			{/if}
+		</p>
+		<div class="mt-3 flex flex-wrap items-center gap-2">
+			{#if confirmingDelete}
+				<form method="POST" action="?/delete" use:enhance={submit()}>
+					<button class="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white">
+						Yes, delete "{data.chore.title}"
+					</button>
+				</form>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
+					onclick={() => (confirmingDelete = false)}
+				>
+					Cancel
+				</button>
+			{:else}
+				<button
+					type="button"
+					class="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-red-600 shadow-sm"
+					onclick={() => (confirmingDelete = true)}
+				>
+					Delete chore…
+				</button>
+			{/if}
+		</div>
+	</section>
 </main>

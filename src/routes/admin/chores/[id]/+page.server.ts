@@ -2,7 +2,10 @@ import { requireAdult } from '$lib/server/auth';
 import { setChoreActive, updateChore } from '$lib/server/choreAdmin';
 import { db } from '$lib/server/db';
 import { choreAssignees, chores, users } from '$lib/server/db/schema';
+import { deleteChore, verifiedCount } from '$lib/server/deleteChore';
+import { InstanceActionError } from '$lib/server/instances';
 import { listRooms } from '$lib/server/roomAdmin';
+import { deletePhoto } from '$lib/server/uploads';
 import { choreFormToObject, choreSchema, firstZodMessage } from '$lib/server/validation';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { asc, eq } from 'drizzle-orm';
@@ -32,7 +35,13 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		.orderBy(asc(users.name))
 		.all();
 
-	return { chore, assigneeIds: pool.map((a) => a.userId), people, rooms: listRooms(db) };
+	return {
+		chore,
+		assigneeIds: pool.map((a) => a.userId),
+		people,
+		rooms: listRooms(db),
+		verifiedCount: verifiedCount(db, chore.id)
+	};
 };
 
 export const actions: Actions = {
@@ -50,5 +59,19 @@ export const actions: Actions = {
 		const chore = getChore(Number(params.id));
 		setChoreActive(chore.id, !chore.isActive);
 		return { success: true };
+	},
+
+	delete: ({ locals, params }) => {
+		requireAdult(locals);
+		const chore = getChore(Number(params.id));
+		let photoPaths: string[] = [];
+		try {
+			({ photoPaths } = deleteChore(db, chore.id));
+		} catch (err) {
+			if (err instanceof InstanceActionError) return fail(400, { message: err.message });
+			throw err;
+		}
+		for (const path of photoPaths) deletePhoto(path);
+		redirect(303, '/admin/chores');
 	}
 };
