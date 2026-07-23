@@ -18,7 +18,6 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 ### Backlog
 
 * **[Med] Dark mode via semantic tokens.** The UI hardcodes slate/white utilities everywhere; a good dark theme means sweeping them into Tailwind v4 `@theme` tokens (`light-dark()`) plus dark variants for the tinted banners/chips. Deliberately deferred — it needs a session with a browser open to judge contrast, not just the smoke suite.
-* **[Med] Family board / kiosk mode.** Glanceable wall-tablet view: everyone's day at once, fast avatar+PIN user switching. Rooms data makes this richer ("who's got the kitchen today").
 * **[Low] HTTPS on the LAN guide.** Full PWA install + Web Push require a secure context. Write up (or script) the reverse-proxy path — e.g. Caddy/Traefik with a local CA, or a Tailscale cert — so a home server gets install prompts + notifications. Until then both features degrade gracefully by design.
 * **[Low] Container timezone note.** `node:22-alpine` defaults to UTC; `todayLocal()` and the 00:05 cron follow the container clock. Document setting `TZ=` in docker-compose (and consider surfacing the server's "today" in the admin UI so a mismatch is obvious).
 * **[Low] Photo storage hygiene.** Verified-instance photos are kept forever. Decide a retention policy (e.g. purge photos on instances verified >90 days ago) and add it to the nightly job with a setting. (`admin doctor` already reports orphan photos as info.)
@@ -31,6 +30,8 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 * **[Idea] Weekly digest push** — Sunday-evening summary per kid (earned this week, streak, what's due tomorrow).
 
 ## Done
+
+* **2026-07-22 — Family board / kiosk (`/board`).** Wall-tablet view: person cards with progress bar, streaks, away badges, and today's chores (icons from chore/room); live clock; auto-refresh every 60s paused during PIN entry. Chrome-less via layout `kiosk` flag. Tap a face → PIN overlay → `?/switch` mints a real session (same argon2 verification as login) and lands on that person's dashboard — attribution stays honest. Reachable from a dashboard chip + desktop pill. Also folded in: dashboard's duplicate verify-queue query removed (layout provides it). Smoke +5 checks (render, anon redirect, wrong-PIN, switch, switched-identity proof); e2e +1 (tap-face-to-switch through the real overlay).
 
 * **2026-07-22 — Playwright browser layer (`npm run e2e`).** 7 Chromium specs driving real clicks: PIN-pad login + wrong-PIN, the presence two-click regression (the bug the smoke couldn't see), self-cleaning override via UI, whole-week pattern chips, mark-done celebration + undo, add-room→library→stock flow. Own seeded DB in gitignored `.playwright/` on port 3011 (wipe+seed+serve happens inside the webServer launcher `e2e/start-server.mjs` — Playwright boots webServer BEFORE globalSetup, so a setup-time wipe races the server's DB handle). Not part of the default ladder; run on client-behavior changes.
 

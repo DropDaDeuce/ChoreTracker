@@ -26,8 +26,17 @@
 	];
 
 	const links = $derived(
-		data.user ? [...KID_LINKS, ...(data.user.role === 'adult' ? ADULT_LINKS : [])] : []
+		data.user
+			? [
+					...KID_LINKS,
+					{ href: '/board', label: 'Board', icon: '📺' },
+					...(data.user.role === 'adult' ? ADULT_LINKS : [])
+				]
+			: []
 	);
+
+	// The family board is a kiosk: fullscreen, no app chrome around it.
+	const kiosk = $derived(page.url.pathname.startsWith('/board'));
 
 	// Bottom bar: kids fit in five tabs; adults get their four most-used plus
 	// a "More" sheet holding the rest.
@@ -66,8 +75,8 @@
 <!-- Touch devices (phones AND tablets) navigate via the bottom tab bar; the
      top pill strip is for mouse/trackpad. Keyed off pointer type, not width —
      an iPad is wider than any phone breakpoint but is still a touch device. -->
-<div class="min-h-screen bg-slate-100 {data.user ? 'pb-20 sm:pointer-fine:pb-0' : ''}">
-	{#if data.user}
+<div class="min-h-screen bg-slate-100 {data.user && !kiosk ? 'pb-20 sm:pointer-fine:pb-0' : ''}">
+	{#if data.user && !kiosk}
 		<header class="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
 			<div class="mx-auto max-w-3xl px-4">
 				<div class="flex items-center justify-between py-2">
@@ -110,7 +119,7 @@
 
 	{@render children()}
 
-	{#if data.user}
+	{#if data.user && !kiosk}
 		<!-- Touch bottom tab bar: thumb-reachable, five slots. Also shown on
 		     tablets — width says desktop, the finger says otherwise. -->
 		<nav

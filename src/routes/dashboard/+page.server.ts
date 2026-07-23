@@ -20,7 +20,7 @@ import {
 import { currentStreak } from '$lib/server/stats';
 import { deletePhoto, savePhoto, UploadError } from '$lib/server/uploads';
 import { fail } from '@sveltejs/kit';
-import { and, asc, desc, eq, gt, gte, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, lte } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
@@ -81,15 +81,7 @@ export const load: PageServerLoad = ({ locals }) => {
 				Date.now() - (row.instance.verifiedAt?.getTime() ?? 0) <= undoWindowMs
 		}));
 
-	const verifyQueueCount =
-		user.role === 'adult'
-			? (db
-					.select({ n: sql<number>`count(*)` })
-					.from(choreInstances)
-					.where(eq(choreInstances.status, 'done'))
-					.get()?.n ?? 0)
-			: 0;
-
+	// verifyQueueCount comes from the root layout load (badge on the nav).
 	const swapPeople = db
 		.select({ id: users.id, name: users.name })
 		.from(users)
@@ -107,7 +99,6 @@ export const load: PageServerLoad = ({ locals }) => {
 		completedToday,
 		balance: balanceCents(db, user.id),
 		streak: currentStreak(db, user.id, today),
-		verifyQueueCount,
 		swaps: openSwapsFor(db, user.id),
 		swapPeople,
 		vapidPublicKey: getVapidPublicKey(db),

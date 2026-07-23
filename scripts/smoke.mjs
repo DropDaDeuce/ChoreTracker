@@ -454,6 +454,18 @@ check(
 	presencePage.body.includes(`${today}: home`) && !presencePage.body.includes(`${today}: home (day override)`)
 );
 
+// 9c. Family board + kiosk switch
+const familyBoard = await get('/board', sam);
+check('board renders for a kid with the whole family', familyBoard.status === 200 && familyBoard.body.includes('Family board') && familyBoard.body.includes('Alex') && familyBoard.body.includes('Riley'));
+const anonFamilyBoard = await get('/board');
+check('anonymous board redirects to picker', anonFamilyBoard.status === 303 && anonFamilyBoard.location === '/');
+const badSwitch = await post('/board?/switch', { userId: '3', pin: '9999' }, sam);
+check('kiosk switch rejects a wrong PIN', badSwitch.status === 400);
+const goodSwitch = await post('/board?/switch', { userId: '3', pin: '2222' }, sam);
+check('kiosk switch logs in as the tapped person', goodSwitch.status === 303 && Boolean(goodSwitch.session));
+const rileyEarnings = await get('/earnings', goodSwitch.session);
+check('switched session is Riley (sees only own earnings)', rileyEarnings.body.includes('Riley') && !rileyEarnings.body.includes('>Sam<'));
+
 // 10. Logout kills the session
 const out = await post('/logout', {}, alex);
 check('logout redirects', out.status === 303);

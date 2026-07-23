@@ -43,7 +43,13 @@
 				<h1 class="text-2xl font-bold text-slate-800">Today</h1>
 				<p class="text-sm text-slate-500">{data.today}</p>
 			</div>
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2">
+				<a
+					href="/board"
+					class="rounded-full bg-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-600"
+				>
+					📺 Board
+				</a>
 				{#if data.streak >= 2}
 					<span class="rounded-full bg-orange-100 px-4 py-1.5 text-sm font-semibold text-orange-700">
 						🔥 {data.streak}-day streak
