@@ -45,10 +45,19 @@
 		return Number(date.slice(8, 10));
 	}
 
+	// Set the hidden date DIRECTLY on the DOM input before submitting: state
+	// flushes to the DOM in a microtask, so a synchronous requestSubmit after
+	// `actionDate = ...` serializes the PREVIOUS click's date.
+	function submitDayForm(form: HTMLFormElement | undefined, date: string) {
+		if (!form) return;
+		actionDate = date;
+		(form.elements.namedItem('date') as HTMLInputElement).value = date;
+		form.requestSubmit();
+	}
+
 	function clickDay(day: (typeof data.days)[number]) {
 		menu = null;
-		actionDate = day.date;
-		toggleForm?.requestSubmit();
+		submitDayForm(toggleForm, day.date);
 	}
 
 	function openMenu(event: MouseEvent, day: (typeof data.days)[number]) {
@@ -58,8 +67,7 @@
 
 	function submitReset(date: string) {
 		menu = null;
-		actionDate = date;
-		resetForm?.requestSubmit();
+		submitDayForm(resetForm, date);
 	}
 
 	function submitRule(kind: 'weekly' | 'biweekly' | 'monthly', isHome: boolean, date: string) {
@@ -71,8 +79,12 @@
 			anchorDate: date,
 			dayOfMonth: dayNumOf(date)
 		};
-		// Let the bound inputs update before submitting.
-		queueMicrotask(() => ruleForm?.requestSubmit());
+		// Same DOM-direct write as submitDayForm — no reactivity race.
+		if (!ruleForm) return;
+		for (const [name, value] of Object.entries(rule)) {
+			(ruleForm.elements.namedItem(name) as HTMLInputElement).value = String(value);
+		}
+		ruleForm.requestSubmit();
 	}
 </script>
 
