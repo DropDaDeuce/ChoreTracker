@@ -17,6 +17,8 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 
 ### Backlog
 
+* **[Med] Dark mode via semantic tokens.** The UI hardcodes slate/white utilities everywhere; a good dark theme means sweeping them into Tailwind v4 `@theme` tokens (`light-dark()`) plus dark variants for the tinted banners/chips. Deliberately deferred — it needs a session with a browser open to judge contrast, not just the smoke suite.
+* **[Med] Family board / kiosk mode.** Glanceable wall-tablet view: everyone's day at once, fast avatar+PIN user switching. Rooms data makes this richer ("who's got the kitchen today").
 * **[Low] HTTPS on the LAN guide.** Full PWA install + Web Push require a secure context. Write up (or script) the reverse-proxy path — e.g. Caddy/Traefik with a local CA, or a Tailscale cert — so a home server gets install prompts + notifications. Until then both features degrade gracefully by design.
 * **[Low] Container timezone note.** `node:22-alpine` defaults to UTC; `todayLocal()` and the 00:05 cron follow the container clock. Document setting `TZ=` in docker-compose (and consider surfacing the server's "today" in the admin UI so a mismatch is obvious).
 * **[Low] Photo storage hygiene.** Verified-instance photos are kept forever. Decide a retention policy (e.g. purge photos on instances verified >90 days ago) and add it to the nightly job with a setting. (`admin doctor` already reports orphan photos as info.)
@@ -30,6 +32,8 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 * **[Idea] E2E browser tests** — the plan named Playwright; the HTTP smoke covers the flows, but a thin Playwright layer would exercise the actual JS (PIN pad, pool builder, enhance forms).
 
 ## Done
+
+* **2026-07-22 — Mobile bottom navigation (UX rework phase 3, partial).** Phone-width gets a fixed bottom tab bar (thumb-reachable): kids get their five tabs directly; adults get Today/Verify/House/People plus a "More" sheet (Calendar, My chores, Earnings, Stars, Settings). Verify tab carries a live queue-count badge (count moved into the root layout load). Desktop keeps the pill strip (now hidden on phones). Dark mode deliberately deferred to backlog — needs eyes-on contrast QA, not just the smoke suite.
 
 * **2026-07-22 — Feel pass + Rooms & chore library (UX rework phases 1–2).**
   * **Feel pass (`3a65ffb`):** shared `submit()` enhance wrapper on every form (busy pulse, double-post proof); confetti + earned-amount celebration on mark-done; Today progress bar; My-chores section first; reject-with-reason (surfaces on the kid's card + push); two-step payout confirm (no-JS falls back to direct post — smoke caught the JS-only version); completedToday date filter moved into SQL. Fixed a latent date-dependent presence test (mutations now thread `today`; it was green only the week it was written).
