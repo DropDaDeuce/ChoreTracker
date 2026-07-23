@@ -223,8 +223,14 @@ export const presenceRules = sqliteTable('presence_rules', {
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
 	kind: text('kind', { enum: ['weekly', 'biweekly', 'monthly'] }).notNull(),
-	/** 0 = Monday … 6 = Sunday (weekly/biweekly). */
+	/** 0 = Monday … 6 = Sunday (biweekly; legacy weekly rules). */
 	weekday: integer('weekday'),
+	/**
+	 * Weekly rules: bit 0 = Monday … bit 6 = Sunday — one rule covers any set
+	 * of days ("away weekdays" = 0b0011111). 0 = legacy rule; fall back to
+	 * `weekday`.
+	 */
+	weekdayMask: integer('weekday_mask').notNull().default(0),
 	/** A date that IS part of the pattern — fixes the biweekly phase. */
 	anchorDate: text('anchor_date'),
 	/** 1–31, clamped to month length (monthly). */

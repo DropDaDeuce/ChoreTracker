@@ -16,8 +16,13 @@ export type PresenceRule = typeof presenceRules.$inferSelect;
 
 export function ruleMatches(rule: PresenceRule, date: string): boolean {
 	switch (rule.kind) {
-		case 'weekly':
-			return isoWeekday(date) === rule.weekday;
+		case 'weekly': {
+			// Mask rules cover any set of days; legacy rows (mask 0) fall back
+			// to their single `weekday`.
+			const mask =
+				rule.weekdayMask || (rule.weekday !== null ? 1 << rule.weekday : 0);
+			return (mask & (1 << isoWeekday(date))) !== 0;
+		}
 		case 'biweekly': {
 			if (isoWeekday(date) !== rule.weekday || !rule.anchorDate) return false;
 			const weeks = Math.floor(diffDays(rule.anchorDate, date) / 7);
@@ -38,7 +43,11 @@ export function isHome(db: DB, userId: number, date: string): boolean {
 		.where(and(eq(presenceDays.userId, userId), eq(presenceDays.date, date)))
 		.get();
 	if (override) return override.isHome;
+	return isHomeByRules(db, userId, date);
+}
 
+/** What the repeating patterns alone say — ignores single-day overrides. */
+export function isHomeByRules(db: DB, userId: number, date: string): boolean {
 	const rules = db
 		.select()
 		.from(presenceRules)

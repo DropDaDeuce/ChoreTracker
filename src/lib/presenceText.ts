@@ -19,17 +19,34 @@ function ordinal(n: number): string {
 	return `${n}th`;
 }
 
+export const WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+export const WEEKDAYS_MASK = 0b0011111; // Mon-Fri
+export const WEEKEND_MASK = 0b1100000; // Sat-Sun
+export const EVERY_DAY_MASK = 0b1111111;
+
 export function describePresenceRule(rule: {
 	kind: 'weekly' | 'biweekly' | 'monthly';
 	weekday: number | null;
+	weekdayMask?: number;
 	anchorDate: string | null;
 	dayOfMonth: number | null;
 	isHome: boolean;
 }): string {
 	const state = rule.isHome ? 'Home' : 'Away';
 	switch (rule.kind) {
-		case 'weekly':
-			return `${state} every ${WEEKDAY_FULL[rule.weekday ?? 0]}`;
+		case 'weekly': {
+			const mask =
+				(rule.weekdayMask ?? 0) || (rule.weekday !== null ? 1 << rule.weekday : 0);
+			if (mask === EVERY_DAY_MASK) return `${state} every day`;
+			if (mask === WEEKDAYS_MASK) return `${state} on weekdays (Mon–Fri)`;
+			if (mask === WEEKEND_MASK) return `${state} on weekends`;
+			const days = WEEKDAY_SHORT.filter((_, i) => mask & (1 << i));
+			if (days.length === 1) {
+				return `${state} every ${WEEKDAY_FULL[WEEKDAY_SHORT.indexOf(days[0])]}`;
+			}
+			return `${state} every ${days.join(', ')}`;
+		}
 		case 'biweekly':
 			return `${state} every other ${WEEKDAY_FULL[rule.weekday ?? 0]} (from ${rule.anchorDate})`;
 		case 'monthly':

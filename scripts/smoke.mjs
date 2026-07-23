@@ -425,6 +425,35 @@ await post(`/admin/users/2/presence?/resetDay`, { date: today }, alex);
 dash = await get('/dashboard', sam);
 check('day reset brings kid home', !dash.body.includes('away today'));
 
+// Weekday-mask patterns + presence-aware calendar
+const maskRule = await post(
+	'/admin/users/2/presence?/addRule',
+	{ kind: 'weekly', isHome: 'false', weekdays: ['0', '1', '2', '3', '4', '5', '6'] },
+	alex
+);
+check('every-day mask pattern added', maskRule.status === 200);
+presencePage = await get('/admin/users/2/presence', alex);
+check('mask pattern described whole ("Away every day")', presencePage.body.includes('Away every day'));
+const nextMonth = `${localToday.getFullYear() + (localToday.getMonth() === 11 ? 1 : 0)}-${String(((localToday.getMonth() + 1) % 12) + 1).padStart(2, '0')}`;
+let calNext = await get(`/calendar?month=${nextMonth}`, alex);
+check("calendar hides an away kid's planned chores", !calNext.body.includes('Empty the dishwasher'));
+check('rotation stays planned while a pool member is home', calNext.body.includes('Set the table'));
+const maskRuleId = presencePage.body.match(/name="ruleId" value="(\d+)"/)?.[1];
+await post('/admin/users/2/presence?/deleteRule', { ruleId: maskRuleId }, alex);
+calNext = await get(`/calendar?month=${nextMonth}`, alex);
+check('planned chores return when the pattern is removed', calNext.body.includes('Empty the dishwasher'));
+
+// Self-cleaning day overrides: toggle-toggle leaves no pin behind
+await post('/admin/users/2/presence?/toggleDay', { date: today }, alex);
+presencePage = await get('/admin/users/2/presence', alex);
+check('single toggle stores an override', presencePage.body.includes(`${today}: away (day override)`));
+await post('/admin/users/2/presence?/toggleDay', { date: today }, alex);
+presencePage = await get('/admin/users/2/presence', alex);
+check(
+	'second toggle removes the override entirely',
+	presencePage.body.includes(`${today}: home`) && !presencePage.body.includes(`${today}: home (day override)`)
+);
+
 // 10. Logout kills the session
 const out = await post('/logout', {}, alex);
 check('logout redirects', out.status === 303);

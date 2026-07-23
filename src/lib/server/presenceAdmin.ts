@@ -3,19 +3,38 @@ import { todayLocal } from './dates';
 import { choreInstances, presenceDays, presenceRules } from './db/schema';
 import type { DB } from './db/type';
 import { generateDueInstances } from './generate';
-import { isHome } from './presence';
+import { isHome, isHomeByRules } from './presence';
 
 /** Presence mutations — every change re-syncs the scheduled instances. */
 
-/** Flip one day relative to its current effective value. */
+/**
+ * Flip one day relative to its current effective value. Self-cleaning: when
+ * the flipped value is what the patterns already say, the override is DELETED
+ * instead of stored — so click-click returns a day to pattern-following
+ * rather than silently pinning it against future rule changes.
+ */
 export function toggleDay(db: DB, userId: number, date: string, today = todayLocal()): void {
 	const next = !isHome(db, userId, date);
-	db.insert(presenceDays)
-		.values({ userId, date, isHome: next })
-		.onConflictDoUpdate({
-			target: [presenceDays.userId, presenceDays.date],
-			set: { isHome: next }
-		})
+	if (next === isHomeByRules(db, userId, date)) {
+		db.delete(presenceDays)
+			.where(and(eq(presenceDays.userId, userId), eq(presenceDays.date, date)))
+			.run();
+	} else {
+		db.insert(presenceDays)
+			.values({ userId, date, isHome: next })
+			.onConflictDoUpdate({
+				target: [presenceDays.userId, presenceDays.date],
+				set: { isHome: next }
+			})
+			.run();
+	}
+	applyPresenceChange(db, userId, today);
+}
+
+/** Drop every override from `today` on — the person follows patterns again. */
+export function clearFutureOverrides(db: DB, userId: number, today = todayLocal()): void {
+	db.delete(presenceDays)
+		.where(and(eq(presenceDays.userId, userId), gte(presenceDays.date, today)))
 		.run();
 	applyPresenceChange(db, userId, today);
 }
@@ -34,6 +53,8 @@ export function addRule(
 	rule: {
 		kind: 'weekly' | 'biweekly' | 'monthly';
 		weekday?: number;
+		/** Weekly: bit 0 = Monday … bit 6 = Sunday; covers any set of days. */
+		weekdayMask?: number;
 		anchorDate?: string;
 		dayOfMonth?: number;
 		isHome: boolean;
@@ -45,6 +66,7 @@ export function addRule(
 			userId,
 			kind: rule.kind,
 			weekday: rule.weekday ?? null,
+			weekdayMask: rule.weekdayMask ?? 0,
 			anchorDate: rule.anchorDate ?? null,
 			dayOfMonth: rule.dayOfMonth ?? null,
 			isHome: rule.isHome

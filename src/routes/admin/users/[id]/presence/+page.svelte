@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { MONTH_LABELS } from '$lib/choreText';
-	import { describePresenceRule, WEEKDAY_FULL } from '$lib/presenceText';
+	import { describePresenceRule, WEEKDAY_FULL, WEEKDAY_SHORT } from '$lib/presenceText';
 	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
@@ -25,6 +25,17 @@
 	let ruleForm = $state<HTMLFormElement>();
 	let actionDate = $state('');
 	let rule = $state({ kind: 'weekly', isHome: 'false', weekday: 0, anchorDate: '', dayOfMonth: 1 });
+
+	// Weekly pattern day-chips (the form flow; the context menu posts a single weekday).
+	let ruleDays = $state<number[]>([]);
+	const PRESETS = [
+		{ label: 'Weekdays', days: [0, 1, 2, 3, 4] },
+		{ label: 'Weekend', days: [5, 6] },
+		{ label: 'Every day', days: [0, 1, 2, 3, 4, 5, 6] }
+	];
+	function toggleRuleDay(i: number) {
+		ruleDays = ruleDays.includes(i) ? ruleDays.filter((d) => d !== i) : [...ruleDays, i];
+	}
 
 	function weekdayOf(date: string): number {
 		const [y, m, d] = date.split('-').map(Number);
@@ -84,8 +95,9 @@
 			<h1 class="text-2xl font-bold text-slate-800">{data.person.name} — days at home</h1>
 		</div>
 		<p class="mt-2 text-sm text-slate-500">
-			Tap a day to flip it. Right-click / long-press (or use the pattern form below) for
-			repeating schedules. No chores are assigned on away days — rotations skip to whoever's home.
+			Tap a day to flip just that day — tap it again and it goes back to following the patterns.
+			Right-click / long-press (or use the pattern form below) for repeating schedules. No chores
+			are assigned or shown on away days — rotations skip to whoever's home.
 		</p>
 	</div>
 
@@ -130,10 +142,15 @@
 		{/each}
 	</div>
 
-	<p class="flex flex-wrap gap-x-4 text-xs text-slate-500">
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
 		<span>🏠 home</span><span>✈️ away</span>
 		<span><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-500"></span>day override (beats patterns)</span>
-	</p>
+		<form method="POST" action="?/clearOverrides" use:enhance={submit()} class="inline">
+			<button class="rounded-lg px-2 py-1.5 font-medium text-slate-500 underline decoration-slate-300 hover:text-slate-700">
+				Clear day overrides (today onward)
+			</button>
+		</form>
+	</div>
 
 	<section class="rounded-2xl bg-white p-5 shadow-sm">
 		<h2 class="text-sm font-semibold tracking-wide text-slate-500 uppercase">Repeating patterns</h2>
@@ -154,45 +171,79 @@
 			<p class="mt-2 text-xs text-slate-400">Newer patterns win when they overlap.</p>
 		{/if}
 
-		<form method="POST" action="?/addRule" use:enhance={submit()} class="mt-4 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4">
-			<label class="block">
-				<span class="mb-1 block text-xs font-medium text-slate-500">Mark as</span>
-				<select name="isHome" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
-					<option value="false">Away</option>
-					<option value="true">Home</option>
-				</select>
-			</label>
-			<label class="block">
-				<span class="mb-1 block text-xs font-medium text-slate-500">Repeat</span>
-				<select name="kind" bind:value={rule.kind} class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
-					<option value="weekly">Every week</option>
-					<option value="biweekly">Every other week</option>
-					<option value="monthly">Day of month</option>
-				</select>
-			</label>
-			{#if rule.kind === 'weekly' || rule.kind === 'biweekly'}
+		<form method="POST" action="?/addRule" use:enhance={submit(() => (ruleDays = []))} class="mt-4 space-y-3 border-t border-slate-100 pt-4">
+			<div class="flex flex-wrap items-end gap-2">
 				<label class="block">
-					<span class="mb-1 block text-xs font-medium text-slate-500">Weekday</span>
-					<select name="weekday" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
-						{#each WEEKDAY_FULL as label, i}
-							<option value={i}>{label}</option>
-						{/each}
+					<span class="mb-1 block text-xs font-medium text-slate-500">Mark as</span>
+					<select name="isHome" class="rounded-lg border border-slate-300 px-2 py-2 text-sm">
+						<option value="false">Away</option>
+						<option value="true">Home</option>
 					</select>
 				</label>
-			{/if}
-			{#if rule.kind === 'biweekly'}
 				<label class="block">
-					<span class="mb-1 block text-xs font-medium text-slate-500">Starting from</span>
-					<input name="anchorDate" type="date" value={data.today} class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+					<span class="mb-1 block text-xs font-medium text-slate-500">Repeat</span>
+					<select name="kind" bind:value={rule.kind} class="rounded-lg border border-slate-300 px-2 py-2 text-sm">
+						<option value="weekly">Every week</option>
+						<option value="biweekly">Every other week</option>
+						<option value="monthly">Day of month</option>
+					</select>
 				</label>
+				{#if rule.kind === 'biweekly'}
+					<label class="block">
+						<span class="mb-1 block text-xs font-medium text-slate-500">Weekday</span>
+						<select name="weekday" class="rounded-lg border border-slate-300 px-2 py-2 text-sm">
+							{#each WEEKDAY_FULL as label, i}
+								<option value={i}>{label}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="block">
+						<span class="mb-1 block text-xs font-medium text-slate-500">Starting from</span>
+						<input name="anchorDate" type="date" value={data.today} class="rounded-lg border border-slate-300 px-2 py-2 text-sm" />
+					</label>
+				{/if}
+				{#if rule.kind === 'monthly'}
+					<label class="block">
+						<span class="mb-1 block text-xs font-medium text-slate-500">Day</span>
+						<input name="dayOfMonth" type="number" min="1" max="31" value="1" class="w-20 rounded-lg border border-slate-300 px-2 py-2 text-sm" />
+					</label>
+				{/if}
+			</div>
+
+			{#if rule.kind === 'weekly'}
+				<div>
+					<span class="mb-1.5 block text-xs font-medium text-slate-500">On which days?</span>
+					<div class="flex flex-wrap items-center gap-1.5">
+						{#each WEEKDAY_SHORT as label, i (label)}
+							<label class="cursor-pointer">
+								<input
+									type="checkbox"
+									name="weekdays"
+									value={i}
+									checked={ruleDays.includes(i)}
+									onchange={() => toggleRuleDay(i)}
+									class="peer sr-only"
+								/>
+								<span class="block rounded-full border border-slate-300 px-3 py-2 text-sm peer-checked:border-slate-800 peer-checked:bg-slate-800 peer-checked:text-white">
+									{label}
+								</span>
+							</label>
+						{/each}
+						<span class="mx-1 text-xs text-slate-300">|</span>
+						{#each PRESETS as preset (preset.label)}
+							<button
+								type="button"
+								class="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 active:bg-slate-200"
+								onclick={() => (ruleDays = [...preset.days])}
+							>
+								{preset.label}
+							</button>
+						{/each}
+					</div>
+				</div>
 			{/if}
-			{#if rule.kind === 'monthly'}
-				<label class="block">
-					<span class="mb-1 block text-xs font-medium text-slate-500">Day</span>
-					<input name="dayOfMonth" type="number" min="1" max="31" value="1" class="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
-				</label>
-			{/if}
-			<button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white">Add pattern</button>
+
+			<button class="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white">Add pattern</button>
 		</form>
 	</section>
 

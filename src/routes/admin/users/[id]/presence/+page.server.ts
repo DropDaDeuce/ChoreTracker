@@ -3,7 +3,13 @@ import { daysInMonth, isDateString, todayLocal } from '$lib/server/dates';
 import { db } from '$lib/server/db';
 import { presenceDays, presenceRules, users } from '$lib/server/db/schema';
 import { isHome } from '$lib/server/presence';
-import { addRule, deleteRule, resetDay, toggleDay } from '$lib/server/presenceAdmin';
+import {
+	addRule,
+	clearFutureOverrides,
+	deleteRule,
+	resetDay,
+	toggleDay
+} from '$lib/server/presenceAdmin';
 import { getSettingOr, WEEK_START_KEY } from '$lib/server/settings';
 import { error, fail } from '@sveltejs/kit';
 import { and, between, desc, eq } from 'drizzle-orm';
@@ -72,11 +78,16 @@ const ruleSchema = z
 		kind: z.enum(['weekly', 'biweekly', 'monthly']),
 		isHome: z.enum(['true', 'false']).transform((v) => v === 'true'),
 		weekday: z.coerce.number().int().min(0).max(6).optional(),
+		/** Weekly: any set of days (checkbox chips / presets). */
+		weekdays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
 		anchorDate: z.string().optional(),
 		dayOfMonth: z.coerce.number().int().min(1).max(31).optional()
 	})
 	.superRefine((r, ctx) => {
-		if ((r.kind === 'weekly' || r.kind === 'biweekly') && r.weekday === undefined) {
+		if (r.kind === 'weekly' && r.weekdays.length === 0 && r.weekday === undefined) {
+			ctx.addIssue({ code: 'custom', message: 'Pick at least one day.' });
+		}
+		if (r.kind === 'biweekly' && r.weekday === undefined) {
 			ctx.addIssue({ code: 'custom', message: 'Pick a weekday.' });
 		}
 		if (r.kind === 'biweekly' && !(r.anchorDate && isDateString(r.anchorDate))) {
@@ -114,13 +125,33 @@ export const actions: Actions = {
 			kind: form.get('kind'),
 			isHome: form.get('isHome'),
 			weekday: form.get('weekday') ?? undefined,
+			weekdays: form.getAll('weekdays'),
 			anchorDate: form.get('anchorDate') || undefined,
 			dayOfMonth: form.get('dayOfMonth') || undefined
 		});
 		if (!parsed.success) {
 			return fail(400, { message: parsed.error.issues[0]?.message ?? 'Invalid pattern.' });
 		}
-		addRule(db, person.id, parsed.data);
+		// Weekly rules store a mask; the single `weekday` path (context menu)
+		// becomes a one-bit mask.
+		const r = parsed.data;
+		const weekdayMask =
+			r.kind === 'weekly'
+				? r.weekdays.reduce((mask, d) => mask | (1 << d), 0) ||
+					(r.weekday !== undefined ? 1 << r.weekday : 0)
+				: 0;
+		addRule(db, person.id, {
+			...r,
+			weekday: r.kind === 'weekly' ? undefined : r.weekday,
+			weekdayMask
+		});
+		return { success: true };
+	},
+
+	clearOverrides: async ({ locals, params }) => {
+		requireAdult(locals);
+		const person = getPerson(Number(params.id));
+		clearFutureOverrides(db, person.id);
 		return { success: true };
 	},
 

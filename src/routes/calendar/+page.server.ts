@@ -2,6 +2,7 @@ import { requireUser } from '$lib/server/auth';
 import { daysInMonth, todayLocal } from '$lib/server/dates';
 import { db } from '$lib/server/db';
 import { choreAssignees, choreInstances, chores, users } from '$lib/server/db/schema';
+import { isHome } from '$lib/server/presence';
 import { occurrencesInRange } from '$lib/server/recurrence';
 import { getSettingOr, WEEK_START_KEY } from '$lib/server/settings';
 import { and, asc, between, eq } from 'drizzle-orm';
@@ -76,6 +77,11 @@ export const load: PageServerLoad = ({ locals, url }) => {
 		for (const date of occurrencesInRange(chore, from, last)) {
 			if (materialized.has(`${chore.id}|${date}`)) continue;
 			const fixed = chore.assignmentType === 'fixed' ? pool[0] : null;
+			// Presence-aware, matching what generation will actually do: a fixed
+			// chore skips its person's away days; a rotation only vanishes when
+			// the whole pool is away.
+			if (fixed && !isHome(db, fixed.userId, date)) continue;
+			if (!fixed && !pool.some((p) => isHome(db, p.userId, date))) continue;
 			push(date, {
 				title: chore.title,
 				color: fixed?.color ?? null,

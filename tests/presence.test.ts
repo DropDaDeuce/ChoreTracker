@@ -2,12 +2,19 @@ import {
 	choreAssignees,
 	choreInstances,
 	chores,
+	presenceDays,
 	presenceRules,
 	users
 } from '$lib/server/db/schema';
 import { generateDueInstances, ROLLING_WINDOW_DAYS } from '$lib/server/generate';
 import { isHome, ruleMatches } from '$lib/server/presence';
-import { addRule, applyPresenceChange, resetDay, toggleDay } from '$lib/server/presenceAdmin';
+import {
+	addRule,
+	applyPresenceChange,
+	clearFutureOverrides,
+	resetDay,
+	toggleDay
+} from '$lib/server/presenceAdmin';
 import { asc, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDb, insertUser } from './helpers/testDb';
@@ -52,6 +59,63 @@ describe('rule matching', () => {
 		expect(ruleMatches(rule, '2026-07-31')).toBe(true);
 		expect(ruleMatches(rule, '2026-06-30')).toBe(true); // clamped
 		expect(ruleMatches(rule, '2026-06-29')).toBe(false);
+	});
+
+	it('weekly mask covers any set of days ("away weekdays")', () => {
+		const rule = makeRule({ kind: 'weekly', weekdayMask: 0b0011111 }); // Mon-Fri
+		expect(ruleMatches(rule, '2026-07-15')).toBe(true); // Wed
+		expect(ruleMatches(rule, '2026-07-17')).toBe(true); // Fri
+		expect(ruleMatches(rule, '2026-07-18')).toBe(false); // Sat
+		expect(ruleMatches(rule, '2026-07-19')).toBe(false); // Sun
+	});
+
+	it('legacy weekly rules (mask 0, single weekday) still match', () => {
+		const rule = makeRule({ kind: 'weekly', weekday: 3, weekdayMask: 0 });
+		expect(ruleMatches(rule, '2026-07-16')).toBe(true); // Thu
+		expect(ruleMatches(rule, '2026-07-17')).toBe(false);
+	});
+});
+
+describe('day overrides are self-cleaning', () => {
+	function overrideRows() {
+		return db.select().from(presenceDays).where(eq(presenceDays.userId, kid.id)).all();
+	}
+
+	it('toggling a day back to its pattern value deletes the override', () => {
+		addRule(db, kid.id, { kind: 'weekly', weekdayMask: 1 << 3, isHome: false }, TODAY); // away Thursdays
+		const thursday = '2026-07-16';
+
+		toggleDay(db, kid.id, thursday, TODAY); // away -> home: override stored
+		expect(isHome(db, kid.id, thursday)).toBe(true);
+		expect(overrideRows()).toHaveLength(1);
+
+		toggleDay(db, kid.id, thursday, TODAY); // home -> away = pattern value: override GONE
+		expect(isHome(db, kid.id, thursday)).toBe(false);
+		expect(overrideRows()).toHaveLength(0); // day follows the pattern again
+	});
+
+	it('toggle-toggle on a rule-less day leaves no pin behind', () => {
+		toggleDay(db, kid.id, TODAY, TODAY); // home -> away
+		expect(overrideRows()).toHaveLength(1);
+		toggleDay(db, kid.id, TODAY, TODAY); // away -> home = default: deleted
+		expect(overrideRows()).toHaveLength(0);
+		expect(isHome(db, kid.id, TODAY)).toBe(true);
+	});
+
+	it('clearFutureOverrides drops today-and-later, keeps history', () => {
+		db.insert(presenceDays)
+			.values([
+				{ userId: kid.id, date: '2026-07-01', isHome: false }, // past
+				{ userId: kid.id, date: TODAY, isHome: false },
+				{ userId: kid.id, date: '2026-07-20', isHome: false }
+			])
+			.run();
+
+		clearFutureOverrides(db, kid.id, TODAY);
+
+		const left = overrideRows();
+		expect(left).toHaveLength(1);
+		expect(left[0].date).toBe('2026-07-01');
 	});
 });
 

@@ -1,0 +1,1 @@
+ALTER TABLE `presence_rules` ADD `weekday_mask` integer DEFAULT 0 NOT NULL;
