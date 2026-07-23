@@ -74,7 +74,7 @@
 							</button>
 							<button
 								type="button"
-								class="px-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+								class="px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
 								onclick={() => (confirmingId = null)}
 							>
 								Cancel
@@ -97,7 +97,7 @@
 
 			{#if data.isAdult}
 				<details class="mt-3">
-					<summary class="cursor-pointer text-xs font-medium text-slate-400 hover:text-slate-600">
+					<summary class="inline-flex cursor-pointer items-center rounded-lg px-2 py-2 text-sm font-medium text-slate-500 hover:text-slate-700">
 						± Bonus / penalty
 					</summary>
 					<form

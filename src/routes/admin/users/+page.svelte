@@ -45,20 +45,20 @@
 						</div>
 						<a
 							href="/admin/users/{person.id}/presence"
-							class="text-sm font-medium text-slate-500 hover:text-slate-800"
+							class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 active:bg-slate-200"
 						>
 							Days at home
 						</a>
 						<button
 							type="button"
-							class="text-sm font-medium text-slate-500 hover:text-slate-800"
+							class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 active:bg-slate-200"
 							onclick={() => (resettingId = resettingId === person.id ? null : person.id)}
 						>
 							Reset PIN
 						</button>
 						<form method="POST" action="?/toggleActive" use:enhance={submit()}>
 							<input type="hidden" name="userId" value={person.id} />
-							<button class="text-sm font-medium {person.isActive ? 'text-red-500 hover:text-red-700' : 'text-emerald-600 hover:text-emerald-800'}">
+							<button class="rounded-lg px-3 py-2 text-sm font-medium {person.isActive ? 'bg-red-50 text-red-600 active:bg-red-100' : 'bg-emerald-50 text-emerald-700 active:bg-emerald-100'}">
 								{person.isActive ? 'Deactivate' : 'Reactivate'}
 							</button>
 						</form>

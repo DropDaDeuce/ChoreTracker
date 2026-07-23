@@ -113,7 +113,7 @@
 								</button>
 								<button
 									type="button"
-									class="px-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+									class="px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
 									onclick={() => (rejectingId = null)}
 								>
 									Cancel
@@ -156,7 +156,7 @@
 						</div>
 						<form method="POST" action="?/remind" use:enhance={submit()}>
 							<input type="hidden" name="instanceId" value={instance.id} />
-							<button class="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700">
+							<button class="rounded-lg bg-amber-100 px-4 py-2.5 text-sm font-semibold text-amber-700 active:bg-amber-200">
 								+1 🔔
 							</button>
 						</form>

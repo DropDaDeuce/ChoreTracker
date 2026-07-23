@@ -41,9 +41,9 @@
 			{data.year}
 		</h1>
 		<div class="flex gap-2">
-			<a href="/calendar?month={data.prev}" class="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm">←</a>
-			<a href="/calendar" class="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm">Today</a>
-			<a href="/calendar?month={data.next}" class="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm">→</a>
+			<a href="/calendar?month={data.prev}" class="flex min-w-11 items-center justify-center rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm active:bg-slate-100">←</a>
+			<a href="/calendar" class="flex items-center rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm active:bg-slate-100">Today</a>
+			<a href="/calendar?month={data.next}" class="flex min-w-11 items-center justify-center rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm active:bg-slate-100">→</a>
 		</div>
 	</div>
 

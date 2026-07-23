@@ -9,6 +9,9 @@
 
 	let celebration = $state<CelebrationData | null>(null);
 
+	// Which open chore is showing the "who takes it?" swap row.
+	let swappingId = $state<number | null>(null);
+
 	function celebrateDone(row: (typeof data.open)[number]) {
 		if (row.chore.requiresVerification) {
 			celebration = { emoji: '⏳', title: 'Sent for a thumbs-up!' };
@@ -170,40 +173,35 @@
 								Done ✓
 							</button>
 							{#if data.swapPeople.length > 0 && !data.swaps.outgoing.some((s) => s.swap.instanceId === instance.id)}
-								<details class="text-right">
-									<summary class="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
-										↔ ask to swap
-									</summary>
-									<div class="mt-2 flex items-center gap-1.5">
-										<select
-											name="toUserId"
-											form="swap-{instance.id}"
-											class="rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
-										>
-											{#each data.swapPeople as person (person.id)}
-												<option value={person.id}>{person.name}</option>
-											{/each}
-										</select>
-										<button
-											form="swap-{instance.id}"
-											class="rounded-lg bg-violet-100 px-2.5 py-1.5 text-xs font-semibold text-violet-700"
-										>
-											Ask
-										</button>
-									</div>
-								</details>
+								<button
+									type="button"
+									class="rounded-xl bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 active:bg-violet-100"
+									onclick={() => (swappingId = swappingId === instance.id ? null : instance.id)}
+								>
+									↔ Swap
+								</button>
 							{/if}
 						</form>
-						{#if data.swapPeople.length > 0}
-							<form
-								id="swap-{instance.id}"
-								method="POST"
-								action="?/requestSwap"
-								use:enhance={submit()}
-								class="hidden"
-							>
-								<input type="hidden" name="instanceId" value={instance.id} />
-							</form>
+						{#if swappingId === instance.id}
+							<div class="flex w-full flex-wrap items-center gap-2 rounded-xl bg-violet-50 p-3">
+								<span class="text-sm font-medium text-violet-900">Who takes it?</span>
+								{#each data.swapPeople as person (person.id)}
+									<form method="POST" action="?/requestSwap" use:enhance={submit(() => (swappingId = null))}>
+										<input type="hidden" name="instanceId" value={instance.id} />
+										<input type="hidden" name="toUserId" value={person.id} />
+										<button class="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white active:bg-violet-700">
+											{person.name}
+										</button>
+									</form>
+								{/each}
+								<button
+									type="button"
+									class="px-2 py-2 text-sm font-medium text-slate-500"
+									onclick={() => (swappingId = null)}
+								>
+									Cancel
+								</button>
+							</div>
 						{/if}
 					</li>
 				{/each}
@@ -254,7 +252,7 @@
 						<span class="text-xs text-slate-400">awaiting verification</span>
 						<form method="POST" action="?/undo" use:enhance={submit()}>
 							<input type="hidden" name="instanceId" value={instance.id} />
-							<button class="text-xs font-medium text-slate-400 hover:text-slate-700">Undo</button>
+							<button class="rounded-lg bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-600 active:bg-slate-200">Undo</button>
 						</form>
 					</li>
 				{/each}
@@ -280,7 +278,7 @@
 						{#if canUndo}
 							<form method="POST" action="?/undo" use:enhance={submit()}>
 								<input type="hidden" name="instanceId" value={instance.id} />
-								<button class="text-xs font-medium text-slate-400 hover:text-slate-700">Undo</button>
+								<button class="rounded-lg bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-600 active:bg-slate-200">Undo</button>
 							</form>
 						{/if}
 					</li>
@@ -303,7 +301,7 @@
 						</span>
 						<form method="POST" action="?/cancelSwap" use:enhance={submit()}>
 							<input type="hidden" name="swapId" value={swap.id} />
-							<button class="text-xs font-medium text-slate-400 hover:text-slate-700">Cancel</button>
+							<button class="rounded-lg bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-600 active:bg-slate-200">Cancel</button>
 						</form>
 					</li>
 				{/each}

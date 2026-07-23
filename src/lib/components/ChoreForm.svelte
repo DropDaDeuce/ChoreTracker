@@ -310,9 +310,9 @@
 						<li class="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
 							<span class="w-5 text-xs font-semibold text-slate-400">{i + 1}.</span>
 							<span class="flex-1 font-medium text-slate-700">{nameOf(id)}</span>
-							<button type="button" class="px-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-30" onclick={() => move(id, -1)} disabled={i === 0} aria-label="Move up">↑</button>
-							<button type="button" class="px-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-30" onclick={() => move(id, 1)} disabled={i === pool.length - 1} aria-label="Move down">↓</button>
-							<button type="button" class="px-1.5 text-red-400 hover:text-red-600" onclick={() => removeFromPool(id)} aria-label="Remove">✕</button>
+							<button type="button" class="h-9 w-9 rounded-lg text-slate-400 hover:text-slate-800 active:bg-slate-200 disabled:opacity-30" onclick={() => move(id, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+							<button type="button" class="h-9 w-9 rounded-lg text-slate-400 hover:text-slate-800 active:bg-slate-200 disabled:opacity-30" onclick={() => move(id, 1)} disabled={i === pool.length - 1} aria-label="Move down">↓</button>
+							<button type="button" class="h-9 w-9 rounded-lg text-red-400 hover:text-red-600 active:bg-red-50" onclick={() => removeFromPool(id)} aria-label="Remove">✕</button>
 						</li>
 					{/each}
 				</ul>

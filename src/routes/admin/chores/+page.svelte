@@ -155,7 +155,7 @@
 				<span class="flex-1"></span>
 				<a
 					href="/admin/chores/new{group.id !== null ? `?room=${group.id}` : ''}"
-					class="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+					class="rounded-lg bg-slate-100 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 active:bg-slate-200"
 				>
 					+ Add chore
 				</a>
@@ -170,7 +170,7 @@
 					{:else}
 						<button
 							type="button"
-							class="text-xs font-medium text-slate-400 hover:text-red-600"
+							class="rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:text-red-600 active:bg-red-50"
 							onclick={() => (deletingRoomId = group.id)}
 						>
 							Remove room

@@ -61,7 +61,7 @@
 						</div>
 						<form method="POST" action="?/unassign" use:enhance={submit()}>
 							<input type="hidden" name="choreId" value={chore.id} />
-							<button class="text-xs font-medium text-slate-400 hover:text-red-600">
+							<button class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 active:bg-red-50 active:text-red-600">
 								{chore.assignmentType === 'rotating' ? 'Leave rotation' : 'Unassign'}
 							</button>
 						</form>

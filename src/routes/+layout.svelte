@@ -63,7 +63,10 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="min-h-screen bg-slate-100 {data.user ? 'pb-20 sm:pb-0' : ''}">
+<!-- Touch devices (phones AND tablets) navigate via the bottom tab bar; the
+     top pill strip is for mouse/trackpad. Keyed off pointer type, not width —
+     an iPad is wider than any phone breakpoint but is still a touch device. -->
+<div class="min-h-screen bg-slate-100 {data.user ? 'pb-20 sm:pointer-fine:pb-0' : ''}">
 	{#if data.user}
 		<header class="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
 			<div class="mx-auto max-w-3xl px-4">
@@ -79,10 +82,10 @@
 						<button class="text-sm font-medium text-slate-500 hover:text-slate-800">Log out</button>
 					</form>
 				</div>
-				<!-- Desktop/tablet: pill strip. Phones use the bottom tab bar instead. -->
+				<!-- Mouse/trackpad: pill strip. Touch devices use the bottom tab bar. -->
 				<nav
 					bind:this={navEl}
-					class="no-scrollbar hidden items-center gap-1 pb-2 text-sm sm:flex sm:flex-wrap"
+					class="no-scrollbar hidden items-center gap-1 pb-2 text-sm sm:pointer-fine:flex sm:pointer-fine:flex-wrap"
 				>
 					{#each links as link}
 						<a
@@ -108,9 +111,10 @@
 	{@render children()}
 
 	{#if data.user}
-		<!-- Phone bottom tab bar: thumb-reachable, five slots. -->
+		<!-- Touch bottom tab bar: thumb-reachable, five slots. Also shown on
+		     tablets — width says desktop, the finger says otherwise. -->
 		<nav
-			class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
+			class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:pointer-fine:hidden"
 			aria-label="Primary"
 		>
 			{#if moreOpen}
@@ -128,7 +132,8 @@
 					{/each}
 				</div>
 			{/if}
-			<div class="grid grid-cols-5">
+			<!-- Capped width so tabs stay finger-sized clusters on wide tablets. -->
+			<div class="mx-auto grid max-w-lg grid-cols-5">
 				{#each tabs as tab}
 					<a
 						href={tab.href}
