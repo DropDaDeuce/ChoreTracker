@@ -48,11 +48,16 @@ test('locked board bounces URL escapes back to the board', async ({ page }) => {
 	await page.waitForURL('**/board');
 	await expect(page.getByRole('heading', { name: /Family board/ })).toBeVisible();
 
-	// PIN is the only way out.
+	// PIN is the only way out — and it opens a VISIT, not a takeover.
 	await page.getByRole('button', { name: /Alex/ }).click();
 	for (const digit of '1234') {
 		await page.getByRole('button', { name: digit, exact: true }).click();
 	}
 	await page.getByRole('button', { name: "Let's go" }).click();
 	await page.waitForURL('**/dashboard');
+
+	// The visit hands the tablet back to the locked board in one tap.
+	await page.getByRole('button', { name: '📺 Back to board' }).click();
+	await page.waitForURL('**/board');
+	await expect(page.getByText(/locked — tap a face/)).toBeVisible();
 });

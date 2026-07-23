@@ -89,22 +89,28 @@ export const actions: Actions = {
 			return fail(400, { message: 'Wrong PIN — try again.', userId });
 		}
 
+		// From a LOCKED board this is a visit: full access for that person,
+		// but the device belongs to the board — a Back-to-board button and an
+		// idle timer return it to the locked state, no adult round-trip.
+		const kind = locals.user.kiosk ? 'kiosk_visit' : 'user';
 		const oldToken = cookies.get(SESSION_COOKIE);
 		if (oldToken) destroySession(oldToken);
-		const { token, expiresAt } = createSession(user.id);
+		const { token, expiresAt } = createSession(user.id, kind);
 		cookies.set(SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTIONS, expires: expiresAt });
 		redirect(303, '/dashboard');
 	},
 
-	// One-tap lock: swap the personal session for a board-only kiosk session.
-	// After this, every page except /board demands a PIN (via face-tap).
+	// One-tap lock: swap the current session for a board-only kiosk session.
+	// Also the "back to board" path for kiosk visits — locking never needs a
+	// PIN; only leaving does.
 	lock: ({ cookies, locals }) => {
 		if (!locals.user) redirect(303, '/');
-		if (locals.user.kiosk) return { success: true }; // already locked
-		const oldToken = cookies.get(SESSION_COOKIE);
-		if (oldToken) destroySession(oldToken);
-		const { token, expiresAt } = createSession(locals.user.id, 'kiosk');
-		cookies.set(SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTIONS, expires: expiresAt });
-		return { success: true };
+		if (!locals.user.kiosk) {
+			const oldToken = cookies.get(SESSION_COOKIE);
+			if (oldToken) destroySession(oldToken);
+			const { token, expiresAt } = createSession(locals.user.id, 'kiosk');
+			cookies.set(SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTIONS, expires: expiresAt });
+		}
+		redirect(303, '/board');
 	}
 };

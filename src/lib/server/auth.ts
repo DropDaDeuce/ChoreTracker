@@ -7,6 +7,9 @@ import { sessions, users } from './db/schema';
 
 export const SESSION_COOKIE = 'session';
 const SESSION_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000; // 90 days — family devices on the LAN
+// Kiosk visits are brief by design; the short expiry is the backstop if the
+// idle auto-return never fires (tablet crashed mid-visit).
+const KIOSK_VISIT_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
 /** What the rest of the app sees as "the logged-in person" (locals.user). */
 export interface SessionUser {
@@ -16,6 +19,8 @@ export interface SessionUser {
 	avatarColor: string;
 	/** Locked family-board session: only /board works until someone PINs in. */
 	kiosk: boolean;
+	/** Face-tap login from a locked board — returns there when done/idle. */
+	kioskVisit: boolean;
 }
 
 export function hashPin(pin: string): Promise<string> {
@@ -33,10 +38,11 @@ function tokenId(token: string): string {
 
 export function createSession(
 	userId: number,
-	kind: 'user' | 'kiosk' = 'user'
+	kind: 'user' | 'kiosk' | 'kiosk_visit' = 'user'
 ): { token: string; expiresAt: Date } {
 	const token = randomBytes(32).toString('base64url');
-	const expiresAt = new Date(Date.now() + SESSION_LIFETIME_MS);
+	const lifetime = kind === 'kiosk_visit' ? KIOSK_VISIT_LIFETIME_MS : SESSION_LIFETIME_MS;
+	const expiresAt = new Date(Date.now() + lifetime);
 	db.insert(sessions).values({ id: tokenId(token), userId, kind, expiresAt }).run();
 	return { token, expiresAt };
 }
@@ -56,15 +62,26 @@ export function validateSessionToken(token: string): SessionUser | null {
 	}
 
 	// Sliding renewal: extend once less than half the lifetime remains.
-	if (row.session.expiresAt.getTime() - Date.now() < SESSION_LIFETIME_MS / 2) {
+	// Per-kind lifetime — renewing a 24h kiosk visit with the 90-day span
+	// would quietly turn a visit into a permanent session.
+	const lifetime =
+		row.session.kind === 'kiosk_visit' ? KIOSK_VISIT_LIFETIME_MS : SESSION_LIFETIME_MS;
+	if (row.session.expiresAt.getTime() - Date.now() < lifetime / 2) {
 		db.update(sessions)
-			.set({ expiresAt: new Date(Date.now() + SESSION_LIFETIME_MS) })
+			.set({ expiresAt: new Date(Date.now() + lifetime) })
 			.where(eq(sessions.id, row.session.id))
 			.run();
 	}
 
 	const { id, name, role, avatarColor } = row.user;
-	return { id, name, role, avatarColor, kiosk: row.session.kind === 'kiosk' };
+	return {
+		id,
+		name,
+		role,
+		avatarColor,
+		kiosk: row.session.kind === 'kiosk',
+		kioskVisit: row.session.kind === 'kiosk_visit'
+	};
 }
 
 export function destroySession(token: string): void {

@@ -483,17 +483,28 @@ check('switched session is Riley (sees only own earnings)', rileyEarnings.body.i
 // Kiosk lock: a locked board session can see ONLY the board.
 const kioskSession = await login('1', '1234');
 const lockRes = await post('/board?/lock', {}, kioskSession);
-check('board lock issues a kiosk session', lockRes.status === 200 && Boolean(lockRes.session));
+check('board lock issues a kiosk session', lockRes.status === 303 && Boolean(lockRes.session));
 const lockedDash = await get('/dashboard', lockRes.session);
 check('locked kiosk bounces /dashboard back to the board', lockedDash.status === 303 && lockedDash.location === '/board');
 const lockedAdmin = await get('/admin/chores', lockRes.session);
 check('locked kiosk bounces admin pages too', lockedAdmin.status === 303 && lockedAdmin.location === '/board');
 const lockedBoard = await get('/board', lockRes.session);
 check('locked kiosk still renders the board', lockedBoard.status === 200 && lockedBoard.body.includes('Family board'));
-const unlockSwitch = await post('/board?/switch', { userId: '2', pin: '1111' }, lockRes.session);
-check('PIN switch escapes the locked kiosk', unlockSwitch.status === 303 && Boolean(unlockSwitch.session));
-const unlockedDash = await get('/dashboard', unlockSwitch.session);
-check('post-unlock session reaches the dashboard', unlockedDash.status === 200);
+
+// A face-tap from the LOCKED board is a VISIT: full access, but the device
+// returns to the locked board (button/idle) instead of keeping the session.
+const visitSwitch = await post('/board?/switch', { userId: '2', pin: '1111' }, lockRes.session);
+check('PIN switch escapes the locked kiosk', visitSwitch.status === 303 && Boolean(visitSwitch.session));
+const visitDash = await get('/dashboard', visitSwitch.session);
+check('kiosk visit reaches the dashboard with a Back-to-board button', visitDash.status === 200 && visitDash.body.includes('Back to board'));
+const backToBoard = await post('/board?/lock', {}, visitSwitch.session);
+check('back-to-board relocks without a PIN', backToBoard.status === 303 && Boolean(backToBoard.session));
+const relockedDash = await get('/dashboard', backToBoard.session);
+check('relocked kiosk bounces to the board again', relockedDash.status === 303 && relockedDash.location === '/board');
+
+// A switch from a NORMAL session stays a normal session (no Back-to-board).
+const normalDash = await get('/dashboard', goodSwitch.session);
+check('normal switched session is not a kiosk visit', normalDash.status === 200 && !normalDash.body.includes('Back to board'));
 
 // 10. Logout kills the session
 const out = await post('/logout', {}, alex);

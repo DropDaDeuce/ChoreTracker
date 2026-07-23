@@ -57,6 +57,7 @@
 	}
 
 	let navEl = $state<HTMLElement>();
+	let backToBoardForm = $state<HTMLFormElement>();
 
 	// Keep the active pill visible when the desktop nav strip wraps/scrolls.
 	$effect(() => {
@@ -65,6 +66,26 @@
 		navEl
 			?.querySelector('[data-active]')
 			?.scrollIntoView({ inline: 'center', block: 'nearest' });
+	});
+
+	// Kiosk visits are borrowed time: if the tablet sits untouched, hand it
+	// back to the locked board so the next person never finds this profile.
+	const KIOSK_IDLE_MS = 3 * 60_000;
+	$effect(() => {
+		if (!data.user?.kioskVisit) return;
+		let timer: ReturnType<typeof setTimeout>;
+		const arm = () => {
+			clearTimeout(timer);
+			timer = setTimeout(() => backToBoardForm?.requestSubmit(), KIOSK_IDLE_MS);
+		};
+		arm();
+		window.addEventListener('pointerdown', arm);
+		window.addEventListener('keydown', arm);
+		return () => {
+			clearTimeout(timer);
+			window.removeEventListener('pointerdown', arm);
+			window.removeEventListener('keydown', arm);
+		};
 	});
 </script>
 
@@ -81,15 +102,36 @@
 			<div class="mx-auto max-w-3xl px-4">
 				<div class="flex items-center justify-between py-2">
 					<a href="/dashboard" class="text-lg font-bold text-slate-800">🧹 ChoreTracker</a>
-					<form method="POST" action="/logout" class="flex items-center gap-2">
-						<span
-							class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white"
-							style="background: {data.user.avatarColor}"
+					{#if data.user.kioskVisit}
+						<!-- A face-tap visit from the locked board: the device belongs
+						     to the board, so "done" means back there — never log out. -->
+						<form
+							bind:this={backToBoardForm}
+							method="POST"
+							action="/board?/lock"
+							class="flex items-center gap-2"
 						>
-							{data.user.name.slice(0, 1).toUpperCase()}
-						</span>
-						<button class="text-sm font-medium text-slate-500 hover:text-slate-800">Log out</button>
-					</form>
+							<span
+								class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white"
+								style="background: {data.user.avatarColor}"
+							>
+								{data.user.name.slice(0, 1).toUpperCase()}
+							</span>
+							<button class="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white">
+								📺 Back to board
+							</button>
+						</form>
+					{:else}
+						<form method="POST" action="/logout" class="flex items-center gap-2">
+							<span
+								class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white"
+								style="background: {data.user.avatarColor}"
+							>
+								{data.user.name.slice(0, 1).toUpperCase()}
+							</span>
+							<button class="text-sm font-medium text-slate-500 hover:text-slate-800">Log out</button>
+						</form>
+					{/if}
 				</div>
 				<!-- Mouse/trackpad: pill strip. Touch devices use the bottom tab bar. -->
 				<nav

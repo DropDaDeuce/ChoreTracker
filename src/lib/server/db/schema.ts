@@ -25,8 +25,11 @@ export const sessions = sqliteTable('sessions', {
 	/**
 	 * 'kiosk' = a locked family-board session (wall tablet): it can ONLY view
 	 * /board; every other route bounces back there until someone PINs in.
+	 * 'kiosk_visit' = a face-tap login FROM a locked board: full access for
+	 * that person, but the device returns to the locked board (button or
+	 * idle timer) instead of keeping their session forever.
 	 */
-	kind: text('kind', { enum: ['user', 'kiosk'] }).notNull().default('user'),
+	kind: text('kind', { enum: ['user', 'kiosk', 'kiosk_visit'] }).notNull().default('user'),
 	expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
 });
 
