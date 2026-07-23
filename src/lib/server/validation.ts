@@ -16,6 +16,10 @@ export const choreSchema = z
 	.object({
 		title: z.string().trim().min(1, 'Title is required.').max(100),
 		description: z.string().trim().max(500).default(''),
+		/** Room the chore belongs to; absent = General / whole-house. */
+		roomId: z.coerce.number().int().positive().optional(),
+		/** Emoji shown on cards (can be a multi-codepoint sequence). */
+		icon: z.string().trim().max(16).default(''),
 		frequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
 		interval: z.coerce.number().int().min(1).max(365).default(1),
 		weekdays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
@@ -29,10 +33,12 @@ export const choreSchema = z
 		requiresPhoto: z.boolean().default(false),
 		graceDays: z.coerce.number().int().min(0).max(30).default(0),
 		assignmentType: z.enum(['fixed', 'rotating']).default('fixed'),
-		/** Ordered: position 0 first. Fixed assignment uses just the first entry. */
-		assigneeIds: z
-			.array(z.coerce.number().int().positive())
-			.min(1, 'Pick who does this chore.')
+		/**
+		 * Ordered: position 0 first. Fixed assignment uses just the first entry.
+		 * Empty = unassigned: the chore exists but generation skips it until
+		 * someone takes it (lets you stock the house first, assign later).
+		 */
+		assigneeIds: z.array(z.coerce.number().int().positive()).default([])
 	})
 	.superRefine((c, ctx) => {
 		if (c.frequency === 'weekly' && c.weekdays.length === 0) {
@@ -44,7 +50,8 @@ export const choreSchema = z
 		if (c.frequency === 'yearly' && !c.monthOfYear) {
 			ctx.addIssue({ code: 'custom', path: ['monthOfYear'], message: 'Pick a month.' });
 		}
-		if (c.assignmentType === 'rotating' && c.assigneeIds.length < 2) {
+		// 0 people = unassigned (fine); a rotation of exactly 1 makes no sense.
+		if (c.assignmentType === 'rotating' && c.assigneeIds.length === 1) {
 			ctx.addIssue({
 				code: 'custom',
 				path: ['assigneeIds'],
@@ -79,7 +86,10 @@ export function choreFormToObject(form: FormData) {
 		requiresPhoto: form.get('requiresPhoto') === 'on',
 		graceDays: form.get('graceDays') || 0,
 		assignmentType: form.get('assignmentType') ?? 'fixed',
-		assigneeIds: form.getAll('assigneeIds')
+		// '' is the "Nobody yet — assign later" option on the fixed select.
+		assigneeIds: form.getAll('assigneeIds').filter((v) => v !== ''),
+		roomId: form.get('roomId') || undefined,
+		icon: form.get('icon') ?? ''
 	};
 }
 

@@ -32,7 +32,7 @@
 						</span>
 						<div class="flex-1">
 							<p class="font-semibold text-slate-800">
-								{person.name}
+								<a href="/admin/users/{person.id}" class="hover:underline">{person.name}</a>
 								{#if person.id === data.myId}<span class="text-xs text-slate-400">(you)</span>{/if}
 							</p>
 							<p class="text-xs text-slate-500">

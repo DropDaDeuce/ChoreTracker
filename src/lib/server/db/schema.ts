@@ -25,10 +25,29 @@ export const sessions = sqliteTable('sessions', {
 	expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
 });
 
+/**
+ * A room (or area) of the house. Purely organizational — generation, rotation
+ * and payouts never look at it. Deleting a room drops its chores back to
+ * "General" (room_id set null).
+ */
+export const rooms = sqliteTable('rooms', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull(),
+	icon: text('icon').notNull().default('🏠'),
+	sortOrder: integer('sort_order').notNull().default(0),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
 export const chores = sqliteTable('chores', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	title: text('title').notNull(),
 	description: text('description').notNull().default(''),
+	/** Null = "General" / whole-house. */
+	roomId: integer('room_id').references(() => rooms.id, { onDelete: 'set null' }),
+	/** Emoji shown on cards; empty = none. */
+	icon: text('icon').notNull().default(''),
 	frequency: text('frequency', { enum: ['daily', 'weekly', 'monthly', 'yearly'] }).notNull(),
 	/** Every N days (daily only, for now). */
 	interval: integer('interval').notNull().default(1),

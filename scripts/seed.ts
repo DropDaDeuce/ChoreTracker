@@ -9,7 +9,7 @@ import { hash } from '@node-rs/argon2';
 import { sql } from 'drizzle-orm';
 import { db } from '../src/lib/server/db';
 import { runMigrations } from '../src/lib/server/db/migrate';
-import { choreAssignees, chores, users } from '../src/lib/server/db/schema';
+import { choreAssignees, chores, rooms, users } from '../src/lib/server/db/schema';
 import { todayLocal } from '../src/lib/server/dates';
 import { generateDueInstances } from '../src/lib/server/generate';
 
@@ -45,6 +45,20 @@ async function main() {
 		ids[person.name] = created.id;
 	}
 
+	const demoRooms = [
+		{ name: 'Kitchen', icon: '🍳' },
+		{ name: 'Living room', icon: '🛋️' },
+		{ name: 'Bathroom', icon: '🛁' }
+	];
+	const roomIds: Record<string, number> = {};
+	for (const [sortOrder, room] of demoRooms.entries()) {
+		roomIds[room.name] = db
+			.insert(rooms)
+			.values({ ...room, sortOrder })
+			.returning()
+			.get().id;
+	}
+
 	const demoChores: Array<{
 		values: Omit<typeof chores.$inferInsert, 'startDate'>;
 		assignees: string[];
@@ -52,6 +66,8 @@ async function main() {
 		{
 			values: {
 				title: 'Empty the dishwasher',
+				icon: '🍽️',
+				roomId: roomIds['Kitchen'],
 				frequency: 'daily',
 				allowanceCents: 50,
 				points: 5
@@ -61,6 +77,8 @@ async function main() {
 		{
 			values: {
 				title: 'Take out the trash',
+				icon: '🗑️',
+				roomId: roomIds['Kitchen'],
 				frequency: 'weekly',
 				weekdayMask: (1 << 0) | (1 << 3), // Mon + Thu
 				allowanceCents: 100,
@@ -72,6 +90,8 @@ async function main() {
 		{
 			values: {
 				title: 'Vacuum the living room',
+				icon: '🌀',
+				roomId: roomIds['Living room'],
 				frequency: 'weekly',
 				weekdayMask: 1 << 5, // Sat
 				allowanceCents: 150,
@@ -83,6 +103,8 @@ async function main() {
 		{
 			values: {
 				title: 'Deep-clean the bathroom',
+				icon: '🛁',
+				roomId: roomIds['Bathroom'],
 				frequency: 'monthly',
 				dayOfMonth: 1,
 				requiresVerification: false

@@ -39,6 +39,7 @@
 
 	<ChoreForm
 		people={data.people}
+		rooms={data.rooms}
 		message={form?.message}
 		submitLabel="Save changes"
 		action="?/save"
@@ -46,6 +47,8 @@
 		initial={{
 			title: data.chore.title,
 			description: data.chore.description,
+			roomId: data.chore.roomId,
+			icon: data.chore.icon,
 			frequency: data.chore.frequency,
 			interval: data.chore.interval,
 			weekdays,

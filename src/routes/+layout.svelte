@@ -16,7 +16,7 @@
 					...(data.user.role === 'adult'
 						? [
 								{ href: '/verify', label: 'Verify' },
-								{ href: '/admin/chores', label: 'Chores' },
+								{ href: '/admin/chores', label: 'House' },
 								{ href: '/admin/users', label: 'People' },
 								{ href: '/admin/settings', label: 'Settings' }
 							]

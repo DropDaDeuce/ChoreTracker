@@ -47,11 +47,14 @@
 		<ul class="space-y-3">
 			{#each visible as chore (chore.id)}
 				<li class="rounded-2xl bg-white p-4 shadow-sm">
-					<p class="font-semibold text-slate-800">{chore.title}</p>
+					<p class="font-semibold text-slate-800">
+						{#if chore.icon}<span class="mr-1">{chore.icon}</span>{/if}{chore.title}
+					</p>
 					{#if chore.description}
 						<p class="mt-0.5 text-sm text-slate-500">{chore.description}</p>
 					{/if}
 					<p class="mt-1.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
+						{#if chore.roomLabel}<span class="font-medium text-slate-400">{chore.roomLabel}</span>{/if}
 						<span>{describeRecurrence(chore)}</span>
 						{#if chore.allowanceCents > 0}
 							<span>💰 {formatCents(chore.allowanceCents, data.currency)}</span>

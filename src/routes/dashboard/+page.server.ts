@@ -1,7 +1,7 @@
 import { requireUser } from '$lib/server/auth';
 import { addDays, todayLocal } from '$lib/server/dates';
 import { db } from '$lib/server/db';
-import { choreInstances, chores, users } from '$lib/server/db/schema';
+import { choreInstances, chores, rooms, users } from '$lib/server/db/schema';
 import { isHome } from '$lib/server/presence';
 import { getVapidPublicKey, notifyUser } from '$lib/server/push';
 import { acceptSwap, cancelSwap, declineSwap, openSwapsFor, requestSwap } from '$lib/server/swaps';
@@ -29,9 +29,10 @@ export const load: PageServerLoad = ({ locals }) => {
 
 	const mine = (extra: ReturnType<typeof and>) =>
 		db
-			.select({ instance: choreInstances, chore: chores })
+			.select({ instance: choreInstances, chore: chores, room: rooms })
 			.from(choreInstances)
 			.innerJoin(chores, eq(choreInstances.choreId, chores.id))
+			.leftJoin(rooms, eq(chores.roomId, rooms.id))
 			.where(and(eq(choreInstances.assigneeId, user.id), extra))
 			.orderBy(asc(choreInstances.dueDate))
 			.all();

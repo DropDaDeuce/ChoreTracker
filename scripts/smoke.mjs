@@ -115,10 +115,45 @@ check('admin chores lists all 5 demo chores', adminChores.status === 200 && (adm
 const adminUsers = await get('/admin/users', alex);
 check('admin users lists the family', adminUsers.status === 200 && adminUsers.body.includes('Riley'));
 
+// 8b. Rooms + chore library
+const roomRes = await post('/admin/chores?/addRoom', { name: 'Test Kitchen', icon: '🍳' }, alex);
+check('adult adds a room', roomRes.status === 200 || roomRes.status === 303);
+let house = await get('/admin/chores', alex);
+check('house view shows the new room', house.body.includes('Test Kitchen'));
+const roomId = house.body.match(/\/admin\/chores\/new\?room=(\d+)/)?.[1];
+check('room exposes an add-chore link', Boolean(roomId));
+
+const picker = await get(`/admin/chores/new?room=${roomId}`, alex);
+check('library picker shows kitchen templates', picker.body.includes('Wipe the counters'));
+
+const multiAdd = await post(
+	'/admin/chores/new?/library',
+	{ roomId, presetKey: 'kitchen', titles: ['Wipe the counters', 'Mop the kitchen floor'] },
+	alex
+);
+check('library multi-add redirects', multiAdd.status === 303);
+house = await get('/admin/chores', alex);
+check('library chores land in the room, unassigned', house.body.includes('Wipe the counters') && house.body.includes('unassigned'));
+
+// Person-centric assignment: Sam takes "Wipe the counters" from their page
+const choreLink = house.body.match(/href="\/admin\/chores\/(\d+)"[^>]*>[\s\S]{0,200}?Wipe the counters/);
+const libChoreId = choreLink?.[1];
+check('house view links the library chore', Boolean(libChoreId));
+const personPage = await get('/admin/users/2', alex);
+check('person page renders with assign control', personPage.status === 200 && personPage.body.includes('Assign a chore'));
+const assignRes = await post('/admin/users/2?/assign', { choreId: libChoreId }, alex);
+check('adult assigns library chore to Sam', assignRes.status === 200 || assignRes.status === 303);
+const samDash = await get('/dashboard', sam);
+check('assigned daily library chore hits Sam today', samDash.body.includes('Wipe the counters'));
+const unassignRes = await post('/admin/users/2?/unassign', { choreId: libChoreId }, alex);
+check('adult unassigns it again', unassignRes.status === 200 || unassignRes.status === 303);
+const samDash2 = await get('/dashboard', sam);
+check('unassigned chore leaves Sam\'s dashboard', !samDash2.body.includes('Wipe the counters'));
+
 // 9. Adult creates a chore via the form; it appears on their dashboard
 const today = new Date().toLocaleDateString('en-CA'); // local date, matching the server's todayLocal()
 const createRes = await post(
-	'/admin/chores/new',
+	'/admin/chores/new?/custom',
 	{
 		title: 'Water the plants',
 		description: '',
@@ -140,7 +175,7 @@ check('new chore appears on assignee dashboard', dashAlex.body.includes('Water t
 
 // Phase 2: rotating chore via the form
 const rotRes = await post(
-	'/admin/chores/new',
+	'/admin/chores/new?/custom',
 	{
 		title: 'Set the table',
 		description: '',
@@ -162,7 +197,7 @@ check('admin list shows rotation order Sam → Riley', choresList.body.includes(
 
 // Phase 2: rotation rejects a single-person pool
 const badRot = await post(
-	'/admin/chores/new',
+	'/admin/chores/new?/custom',
 	{
 		title: 'Bad rotation',
 		frequency: 'daily',
@@ -201,7 +236,7 @@ await post(
 
 // Phase 3: photo proof end-to-end
 const photoChore = await post(
-	'/admin/chores/new',
+	'/admin/chores/new?/custom',
 	{
 		title: 'Photo check',
 		frequency: 'daily',
@@ -333,7 +368,7 @@ const backupZip = Buffer.from(await backupRes.arrayBuffer());
 check('backup downloads as zip', backupRes.status === 200 && backupZip.readUInt32LE(0) === 0x04034b50 && backupZip.length > 10000);
 
 await post(
-	'/admin/chores/new',
+	'/admin/chores/new?/custom',
 	{ title: 'Post-backup marker', frequency: 'daily', interval: '1', startDate: today, graceDays: '0', assignmentType: 'fixed', assigneeIds: '1' },
 	alex
 );

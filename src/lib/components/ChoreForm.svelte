@@ -9,9 +9,17 @@
 		role: string;
 	}
 
+	interface Room {
+		id: number;
+		name: string;
+		icon: string;
+	}
+
 	interface Initial {
 		title: string;
 		description: string;
+		roomId: number | null;
+		icon: string;
 		frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
 		interval: number;
 		weekdays: number[];
@@ -30,6 +38,7 @@
 
 	let {
 		people,
+		rooms = [],
 		initial,
 		message,
 		submitLabel = 'Save chore',
@@ -37,6 +46,7 @@
 		currency = '$'
 	}: {
 		people: Person[];
+		rooms?: Room[];
 		initial: Initial;
 		message?: string;
 		submitLabel?: string;
@@ -51,7 +61,7 @@
 	// svelte-ignore state_referenced_locally
 	let pool = $state<number[]>([...initial.assigneeIds]);
 	// svelte-ignore state_referenced_locally
-	let fixedId = $state<number | null>(initial.assigneeIds[0] ?? people[0]?.id ?? null);
+	let fixedId = $state<number | null>(initial.assigneeIds[0] ?? null);
 
 	let addId = $state<number | ''>('');
 
@@ -78,17 +88,44 @@
 </script>
 
 <form method="POST" {action} use:enhance={submit()} class="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
-	<label class="block">
-		<span class="mb-1 block text-sm font-medium text-slate-700">Title</span>
-		<input
-			name="title"
-			required
-			maxlength="100"
-			value={initial.title}
-			class="w-full rounded-lg border border-slate-300 px-3 py-2"
-			placeholder="e.g. Empty the dishwasher"
-		/>
-	</label>
+	<div class="flex gap-3">
+		<label class="block w-20">
+			<span class="mb-1 block text-sm font-medium text-slate-700">Icon</span>
+			<input
+				name="icon"
+				maxlength="16"
+				value={initial.icon}
+				class="w-full rounded-lg border border-slate-300 px-2 py-2 text-center"
+				placeholder="🧹"
+			/>
+		</label>
+		<label class="block flex-1">
+			<span class="mb-1 block text-sm font-medium text-slate-700">Title</span>
+			<input
+				name="title"
+				required
+				maxlength="100"
+				value={initial.title}
+				class="w-full rounded-lg border border-slate-300 px-3 py-2"
+				placeholder="e.g. Empty the dishwasher"
+			/>
+		</label>
+	</div>
+
+	{#if rooms.length > 0}
+		<label class="block">
+			<span class="mb-1 block text-sm font-medium text-slate-700">Room</span>
+			<select name="roomId" class="w-full rounded-lg border border-slate-300 px-3 py-2">
+				<option value="" selected={initial.roomId === null}>🏠 General (whole house)</option>
+				{#each rooms as room (room.id)}
+					<option value={room.id} selected={initial.roomId === room.id}>
+						{room.icon}
+						{room.name}
+					</option>
+				{/each}
+			</select>
+		</label>
+	{/if}
 
 	<label class="block">
 		<span class="mb-1 block text-sm font-medium text-slate-700">Notes (optional)</span>
@@ -249,10 +286,10 @@
 		{#if assignmentType === 'fixed'}
 			<select
 				name="assigneeIds"
-				required
 				bind:value={fixedId}
 				class="w-full rounded-lg border border-slate-300 px-3 py-2"
 			>
+				<option value={null}>Nobody yet — assign later</option>
 				{#each people as person (person.id)}
 					<option value={person.id}>
 						{person.name}

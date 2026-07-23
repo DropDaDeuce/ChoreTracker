@@ -17,8 +17,11 @@ describe('choreSchema', () => {
 		expect(parsed.graceDays).toBe(0);
 	});
 
-	it('requires at least one assignee', () => {
-		expect(choreSchema.safeParse({ ...valid, assigneeIds: [] }).success).toBe(false);
+	it('allows zero assignees — unassigned chores are stocked now, handed out later', () => {
+		expect(choreSchema.safeParse({ ...valid, assigneeIds: [] }).success).toBe(true);
+		expect(
+			choreSchema.safeParse({ ...valid, assignmentType: 'rotating', assigneeIds: [] }).success
+		).toBe(true);
 	});
 
 	it('requires at least two people for a rotation', () => {

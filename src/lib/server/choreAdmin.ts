@@ -1,8 +1,7 @@
-import { and, eq, gte } from 'drizzle-orm';
-import { todayLocal } from './dates';
+import { eq } from 'drizzle-orm';
+import { deleteOpenFutureInstances } from './assignments';
 import { db } from './db';
-import { choreAssignees, choreInstances, chores } from './db/schema';
-import type { DB } from './db/type';
+import { choreAssignees, chores } from './db/schema';
 import { generateDueInstances } from './generate';
 import type { ChoreInput } from './validation';
 
@@ -11,6 +10,8 @@ export function choreColumnsFromInput(input: ChoreInput) {
 	return {
 		title: input.title,
 		description: input.description,
+		roomId: input.roomId ?? null,
+		icon: input.icon,
 		frequency: input.frequency,
 		interval: input.interval,
 		weekdayMask: input.weekdays.reduce((mask, d) => mask | (1 << d), 0),
@@ -35,7 +36,8 @@ function assigneeRows(choreId: number, input: ChoreInput) {
 export function createChore(input: ChoreInput): number {
 	const choreId = db.transaction((tx) => {
 		const created = tx.insert(chores).values(choreColumnsFromInput(input)).returning().get();
-		tx.insert(choreAssignees).values(assigneeRows(created.id, input)).run();
+		const assignees = assigneeRows(created.id, input);
+		if (assignees.length > 0) tx.insert(choreAssignees).values(assignees).run();
 		return created.id;
 	});
 	generateDueInstances(db);
@@ -46,7 +48,8 @@ export function updateChore(choreId: number, input: ChoreInput): void {
 	db.transaction((tx) => {
 		tx.update(chores).set(choreColumnsFromInput(input)).where(eq(chores.id, choreId)).run();
 		tx.delete(choreAssignees).where(eq(choreAssignees.choreId, choreId)).run();
-		tx.insert(choreAssignees).values(assigneeRows(choreId, input)).run();
+		const assignees = assigneeRows(choreId, input);
+		if (assignees.length > 0) tx.insert(choreAssignees).values(assignees).run();
 		// Recurrence or assignees may have changed: drop future open instances and
 		// regenerate. Done/verified history (and overdue items) stays untouched.
 		deleteOpenFutureInstances(tx, choreId);
@@ -62,14 +65,3 @@ export function setChoreActive(choreId: number, isActive: boolean): void {
 	if (isActive) generateDueInstances(db);
 }
 
-function deleteOpenFutureInstances(tx: DB, choreId: number): void {
-	tx.delete(choreInstances)
-		.where(
-			and(
-				eq(choreInstances.choreId, choreId),
-				eq(choreInstances.status, 'pending'),
-				gte(choreInstances.dueDate, todayLocal())
-			)
-		)
-		.run();
-}

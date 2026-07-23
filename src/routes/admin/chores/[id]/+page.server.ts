@@ -2,6 +2,7 @@ import { requireAdult } from '$lib/server/auth';
 import { setChoreActive, updateChore } from '$lib/server/choreAdmin';
 import { db } from '$lib/server/db';
 import { choreAssignees, chores, users } from '$lib/server/db/schema';
+import { listRooms } from '$lib/server/roomAdmin';
 import { choreFormToObject, choreSchema, firstZodMessage } from '$lib/server/validation';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { asc, eq } from 'drizzle-orm';
@@ -31,7 +32,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		.orderBy(asc(users.name))
 		.all();
 
-	return { chore, assigneeIds: pool.map((a) => a.userId), people };
+	return { chore, assigneeIds: pool.map((a) => a.userId), people, rooms: listRooms(db) };
 };
 
 export const actions: Actions = {

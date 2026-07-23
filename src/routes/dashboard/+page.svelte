@@ -105,11 +105,16 @@
 		{:else}
 			<ul class="space-y-3">
 				{#each data.open as row (row.instance.id)}
-					{@const { instance, chore, payoutPreview } = row}
+					{@const { instance, chore, room, payoutPreview } = row}
 					<li class="flex flex-wrap items-center gap-4 rounded-2xl bg-white p-4 shadow-sm">
 						<div class="min-w-40 flex-1">
-							<p class="font-semibold text-slate-800">{chore.title}</p>
+							<p class="font-semibold text-slate-800">
+								{#if chore.icon}<span class="mr-1">{chore.icon}</span>{/if}{chore.title}
+							</p>
 							<p class="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
+								{#if room}
+									<span class="font-medium text-slate-400">{room.icon} {room.name}</span>
+								{/if}
 								{#if instance.dueDate < data.today}
 									<span class="font-semibold text-red-600">Overdue — was due {instance.dueDate}</span>
 								{:else}

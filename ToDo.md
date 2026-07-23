@@ -31,6 +31,11 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 
 ## Done
 
+* **2026-07-22 — Feel pass + Rooms & chore library (UX rework phases 1–2).**
+  * **Feel pass (`3a65ffb`):** shared `submit()` enhance wrapper on every form (busy pulse, double-post proof); confetti + earned-amount celebration on mark-done; Today progress bar; My-chores section first; reject-with-reason (surfaces on the kid's card + push); two-step payout confirm (no-JS falls back to direct post — smoke caught the JS-only version); completedToday date filter moved into SQL. Fixed a latent date-dependent presence test (mutations now thread `today`; it was green only the week it was written).
+  * **Rooms + library:** `rooms` table, `chores.room_id/icon` (migration `0005_rooms`); House view (room-grouped admin, Add Room presets + custom, get-started checklist); library picker with checklist multi-add (unassigned, $0); person detail page (`/admin/users/[id]`) with assign/unassign + weekly-load estimate; room badges on kid cards; seed creates demo rooms. New engine modules `assignments.ts`/`library.ts`/`roomAdmin.ts` are db-parameterized (choreAdmin's singleton import would create `data/` under vitest). Gotcha: SvelteKit forbids default + named actions on one route — `/admin/chores/new` is now `?/custom` + `?/library`.
+  * Verified: 99 vitest tests + full smoke (incl. new room→library→assign→unassign checks) green.
+
 * **2026-07-15 — Multi-host LAN access fixed (first real deployment feedback).** Phone at `http://<LAN-IP>:3000` would 403 on login: kit's CSRF check needs ONE fixed ORIGIN, and without ORIGIN adapter-node assumes **https** for the derived origin, failing every plain-HTTP form post. Replaced with our own same-host check in hooks.server.ts (`csrf.checkOrigin: false`); verified logins via 127.0.0.1, localhost, AND the real LAN IP with cross-site posts still blocked; ORIGIN removed from panel/compose/docs. Panel Stop button can now stop servers it didn't start (finds the node PID on the port, confirms, kill-tree). Reminder surfaced for users: type `http://`, phones auto-upgrade to https → ERR_SSL_PROTOCOL_ERROR.
 
 * **2026-07-15 — Presence ("Days at home") for split households + deploy tool.**
