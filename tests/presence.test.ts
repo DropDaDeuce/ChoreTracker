@@ -74,6 +74,34 @@ describe('rule matching', () => {
 		expect(ruleMatches(rule, '2026-07-16')).toBe(true); // Thu
 		expect(ruleMatches(rule, '2026-07-17')).toBe(false);
 	});
+
+	it('biweekly full-week mask: 7 on from the anchor, 7 off, repeating', () => {
+		// Kids arrive Sunday 2026-07-19; away that whole week, home the next.
+		const rule = makeRule({
+			kind: 'biweekly',
+			weekdayMask: 0b1111111,
+			anchorDate: '2026-07-19'
+		});
+		expect(ruleMatches(rule, '2026-07-19')).toBe(true); // arrival Sunday
+		expect(ruleMatches(rule, '2026-07-25')).toBe(true); // last day of the on-week
+		expect(ruleMatches(rule, '2026-07-26')).toBe(false); // off-week starts
+		expect(ruleMatches(rule, '2026-08-01')).toBe(false); // still off
+		expect(ruleMatches(rule, '2026-08-02')).toBe(true); // next on-week
+		expect(ruleMatches(rule, '2026-07-18')).toBe(false); // day before anchor = off
+		expect(ruleMatches(rule, '2026-07-05')).toBe(true); // full cycle earlier
+	});
+
+	it('biweekly mask respects the weekday bits inside the on-week', () => {
+		const rule = makeRule({
+			kind: 'biweekly',
+			weekdayMask: 0b1100000, // weekend only
+			anchorDate: '2026-07-19' // Sunday
+		});
+		expect(ruleMatches(rule, '2026-07-19')).toBe(true); // Sun of on-week
+		expect(ruleMatches(rule, '2026-07-25')).toBe(true); // Sat of on-week
+		expect(ruleMatches(rule, '2026-07-22')).toBe(false); // Wed of on-week: not in mask
+		expect(ruleMatches(rule, '2026-07-26')).toBe(false); // Sun of off-week
+	});
 });
 
 describe('day overrides are self-cleaning', () => {

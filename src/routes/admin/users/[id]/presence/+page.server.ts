@@ -84,11 +84,8 @@ const ruleSchema = z
 		dayOfMonth: z.coerce.number().int().min(1).max(31).optional()
 	})
 	.superRefine((r, ctx) => {
-		if (r.kind === 'weekly' && r.weekdays.length === 0 && r.weekday === undefined) {
+		if (r.kind !== 'monthly' && r.weekdays.length === 0 && r.weekday === undefined) {
 			ctx.addIssue({ code: 'custom', message: 'Pick at least one day.' });
-		}
-		if (r.kind === 'biweekly' && r.weekday === undefined) {
-			ctx.addIssue({ code: 'custom', message: 'Pick a weekday.' });
 		}
 		if (r.kind === 'biweekly' && !(r.anchorDate && isDateString(r.anchorDate))) {
 			ctx.addIssue({ code: 'custom', message: 'Every-other patterns need a starting date.' });
@@ -132,19 +129,15 @@ export const actions: Actions = {
 		if (!parsed.success) {
 			return fail(400, { message: parsed.error.issues[0]?.message ?? 'Invalid pattern.' });
 		}
-		// Weekly rules store a mask; the single `weekday` path (context menu)
-		// becomes a one-bit mask.
+		// Weekly AND biweekly rules store a mask; the single `weekday` path
+		// (context menu) becomes a one-bit mask.
 		const r = parsed.data;
 		const weekdayMask =
-			r.kind === 'weekly'
-				? r.weekdays.reduce((mask, d) => mask | (1 << d), 0) ||
-					(r.weekday !== undefined ? 1 << r.weekday : 0)
-				: 0;
-		addRule(db, person.id, {
-			...r,
-			weekday: r.kind === 'weekly' ? undefined : r.weekday,
-			weekdayMask
-		});
+			r.kind === 'monthly'
+				? 0
+				: r.weekdays.reduce((mask, d) => mask | (1 << d), 0) ||
+					(r.weekday !== undefined ? 1 << r.weekday : 0);
+		addRule(db, person.id, { ...r, weekday: undefined, weekdayMask });
 		return { success: true };
 	},
 

@@ -47,8 +47,19 @@ export function describePresenceRule(rule: {
 			}
 			return `${state} every ${days.join(', ')}`;
 		}
-		case 'biweekly':
-			return `${state} every other ${WEEKDAY_FULL[rule.weekday ?? 0]} (from ${rule.anchorDate})`;
+		case 'biweekly': {
+			const mask =
+				(rule.weekdayMask ?? 0) || (rule.weekday !== null ? 1 << rule.weekday : 0);
+			const from = ` (from ${rule.anchorDate})`;
+			if (mask === EVERY_DAY_MASK) return `${state} every other week${from}`;
+			if (mask === WEEKDAYS_MASK) return `${state} every other week, weekdays only${from}`;
+			if (mask === WEEKEND_MASK) return `${state} every other weekend${from}`;
+			const days = WEEKDAY_SHORT.filter((_, i) => mask & (1 << i));
+			if (days.length === 1) {
+				return `${state} every other ${WEEKDAY_FULL[WEEKDAY_SHORT.indexOf(days[0])]}${from}`;
+			}
+			return `${state} every other week on ${days.join(', ')}${from}`;
+		}
 		case 'monthly':
 			return `${state} on the ${ordinal(rule.dayOfMonth ?? 1)} of each month`;
 	}

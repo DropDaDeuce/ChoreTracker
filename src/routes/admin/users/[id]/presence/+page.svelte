@@ -202,15 +202,7 @@
 				</label>
 				{#if rule.kind === 'biweekly'}
 					<label class="block">
-						<span class="mb-1 block text-xs font-medium text-slate-500">Weekday</span>
-						<select name="weekday" class="rounded-lg border border-slate-300 px-2 py-2 text-sm">
-							{#each WEEKDAY_FULL as label, i}
-								<option value={i}>{label}</option>
-							{/each}
-						</select>
-					</label>
-					<label class="block">
-						<span class="mb-1 block text-xs font-medium text-slate-500">Starting from</span>
+						<span class="mb-1 block text-xs font-medium text-slate-500">First day it applies</span>
 						<input name="anchorDate" type="date" value={data.today} class="rounded-lg border border-slate-300 px-2 py-2 text-sm" />
 					</label>
 				{/if}
@@ -222,7 +214,7 @@
 				{/if}
 			</div>
 
-			{#if rule.kind === 'weekly'}
+			{#if rule.kind === 'weekly' || rule.kind === 'biweekly'}
 				<div>
 					<span class="mb-1.5 block text-xs font-medium text-slate-500">On which days?</span>
 					<div class="flex flex-wrap items-center gap-1.5">
@@ -255,6 +247,12 @@
 				</div>
 			{/if}
 
+			{#if rule.kind === 'biweekly'}
+				<p class="text-xs text-slate-400">
+					Runs on the picked days for 7 days starting at that date, then skips 7, and repeats —
+					so "every other week with mom" is: Away + Every day + the day they leave.
+				</p>
+			{/if}
 			<button class="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white">Add pattern</button>
 		</form>
 	</section>
