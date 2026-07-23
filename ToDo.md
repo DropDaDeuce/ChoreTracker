@@ -33,6 +33,8 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 
 ## Done
 
+* **2026-07-22 — Control panel rework (GUI + internals).** Pixel-coordinate WinForms replaced with container layout (TableLayoutPanel + wrapping FlowLayoutPanels — resizes properly, adding a button is one line); white header card with big status dot, live URL line (localhost + LAN), and uptime for panel-started servers; grouped Household/Developer sections; RichTextBox console with color-coded command/success/failure lines + Copy output; cue-banner hints on inputs (EM_SETCUEBANNER P/Invoke); flat-styled buttons with primary/danger variants. Internals: health polling damped (one blip can't flash a green light red; two misses flip it), ASCII spinner + elapsed on tasks, port box persisted to gitignored `.panel-port`, port validation, Smoke button pre-checks that port 3010 is actually serving before offering to run, stale test/check counts removed from labels. Self-test extended: forces a layout pass and fails if any container collapses (caught the classic Dock=Fill-inside-AutoSize trap). Verified headless both down and attached; still pure ASCII, zero deps, PS 5.1.
+
 * **2026-07-22 — Mobile bottom navigation (UX rework phase 3, partial).** Phone-width gets a fixed bottom tab bar (thumb-reachable): kids get their five tabs directly; adults get Today/Verify/House/People plus a "More" sheet (Calendar, My chores, Earnings, Stars, Settings). Verify tab carries a live queue-count badge (count moved into the root layout load). Desktop keeps the pill strip (now hidden on phones). Dark mode deliberately deferred to backlog — needs eyes-on contrast QA, not just the smoke suite.
 
 * **2026-07-22 — Feel pass + Rooms & chore library (UX rework phases 1–2).**

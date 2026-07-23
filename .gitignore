@@ -19,6 +19,8 @@ uploads/
 
 # Local deploy-target path for tools/deploy.ps1 (machine-specific)
 .deploy-target
+# Control panel's remembered port (machine-specific)
+.panel-port
 
 # Backups / exports that may contain real data
 *.bak
