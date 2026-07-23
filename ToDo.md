@@ -29,9 +29,12 @@ Tags: **[High]/[Med]/[Low]** = production impact; **[DECISION]** = needs Mathew'
 * **[Idea] Session/device management** — "log out everywhere" per person; adults can see active devices.
 * **[Idea] Chore templates / quick-add** — common household chores as one-tap presets on the new-chore form.
 * **[Idea] Weekly digest push** — Sunday-evening summary per kid (earned this week, streak, what's due tomorrow).
-* **[Idea] E2E browser tests** — the plan named Playwright; the HTTP smoke covers the flows, but a thin Playwright layer would exercise the actual JS (PIN pad, pool builder, enhance forms).
 
 ## Done
+
+* **2026-07-22 — Playwright browser layer (`npm run e2e`).** 7 Chromium specs driving real clicks: PIN-pad login + wrong-PIN, the presence two-click regression (the bug the smoke couldn't see), self-cleaning override via UI, whole-week pattern chips, mark-done celebration + undo, add-room→library→stock flow. Own seeded DB in gitignored `.playwright/` on port 3011 (wipe+seed+serve happens inside the webServer launcher `e2e/start-server.mjs` — Playwright boots webServer BEFORE globalSetup, so a setup-time wipe races the server's DB handle). Not part of the default ladder; run on client-behavior changes.
+
+* **2026-07-22 — Biweekly whole-week presence (feedback: still day-by-day for "every other week" custody).** Biweekly rules take the weekday chips/presets too, and the 14-day cycle anchors to the CHANGEOVER day (7 on from the anchor, 7 off) instead of calendar weeks — "Away every other week starting the day they leave" is three taps. Legacy single-day biweekly rows keep exact old behavior (existing parity test green unchanged). 106 vitest + smoke green.
 
 * **2026-07-22 — Presence usability (feedback: "creating days at home is a chore").**
   * **Weekday-mask rules (migration `0006`):** one weekly rule now covers any set of days — form has Mon–Sun chips + Weekdays/Weekend/Every-day presets. Legacy single-day rows keep working via code fallback (mask 0 → `weekday`); no backfill.

@@ -40,6 +40,7 @@ Read at the start of every session. Rules here are law. See `README.md` for the 
 ## Workflow & Verification
 
 * **Verify ladder for any nontrivial change:** `npm run check` (0 errors/warnings) → `npm test` → `npm run build` → for user-facing flows, fresh seed + `npm run smoke` against `node build` (PORT=3010, ORIGIN=http://localhost:3010, BODY_SIZE_LIMIT=10M).
+* **Browser layer:** `npm run e2e` (Playwright/Chromium, needs `npm run build` first) drives real clicks against its own seeded DB in `.playwright/` on port 3011 — never `data/`. Run it whenever CLIENT-side behavior changes (enhance forms, hidden-form submits, pickers, PIN pad): the HTTP smoke posts actions directly and is structurally blind to reactivity races (two shipped bugs proved it). Keep specs thin; state is shared per run (workers=1), so tests clean up after themselves.
 * **Tests live in `tests/`** with `tests/helpers/testDb.ts` (in-memory SQLite + real migrations). New engine logic ships WITH unit tests; new user flows get a smoke check appended to `scripts/smoke.mjs`.
 * **Scripted form POSTs need `accept: text/html`** or SvelteKit returns JSON action results instead of HTML + real 303s (bit us in smoke).
 * Commit per coherent unit of work with a body that says what was verified. Never commit `data/` or `/Edits`-style scratch — scratch goes in the session scratchpad, not the repo.

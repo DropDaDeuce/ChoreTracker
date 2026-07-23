@@ -44,6 +44,8 @@ coverage/
 test-results/
 playwright-report/
 playwright/.cache/
+# E2E scratch database (seeded fresh per run by e2e/global-setup.ts)
+.playwright/
 *.log
 npm-debug.log*
 yarn-error.log*
