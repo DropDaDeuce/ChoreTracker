@@ -14,6 +14,8 @@ export interface SessionUser {
 	name: string;
 	role: 'adult' | 'kid';
 	avatarColor: string;
+	/** Locked family-board session: only /board works until someone PINs in. */
+	kiosk: boolean;
 }
 
 export function hashPin(pin: string): Promise<string> {
@@ -29,10 +31,13 @@ function tokenId(token: string): string {
 	return createHash('sha256').update(token).digest('hex');
 }
 
-export function createSession(userId: number): { token: string; expiresAt: Date } {
+export function createSession(
+	userId: number,
+	kind: 'user' | 'kiosk' = 'user'
+): { token: string; expiresAt: Date } {
 	const token = randomBytes(32).toString('base64url');
 	const expiresAt = new Date(Date.now() + SESSION_LIFETIME_MS);
-	db.insert(sessions).values({ id: tokenId(token), userId, expiresAt }).run();
+	db.insert(sessions).values({ id: tokenId(token), userId, kind, expiresAt }).run();
 	return { token, expiresAt };
 }
 
@@ -59,7 +64,7 @@ export function validateSessionToken(token: string): SessionUser | null {
 	}
 
 	const { id, name, role, avatarColor } = row.user;
-	return { id, name, role, avatarColor };
+	return { id, name, role, avatarColor, kiosk: row.session.kind === 'kiosk' };
 }
 
 export function destroySession(token: string): void {
@@ -81,6 +86,9 @@ export const SESSION_COOKIE_OPTIONS = {
 /** Route guard: must be logged in, else back to the profile picker. */
 export function requireUser(locals: App.Locals): SessionUser {
 	if (!locals.user) redirect(303, '/');
+	// A locked kiosk session sees exactly one page: the board. Typing URLs
+	// on the wall tablet gets you right back there.
+	if (locals.user.kiosk) redirect(303, '/board');
 	return locals.user;
 }
 

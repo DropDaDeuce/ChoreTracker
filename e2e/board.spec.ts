@@ -22,3 +22,37 @@ test('kiosk: tap a face, enter their PIN, land in their dashboard', async ({ pag
 	await expect(page.getByRole('heading', { name: 'Sam' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Riley' })).toHaveCount(0);
 });
+
+test('exiting the board requires the opener to re-enter their PIN', async ({ page }) => {
+	await login(page, 'Alex', '1234');
+	await page.goto('/board');
+
+	await page.getByRole('button', { name: 'exit board' }).click();
+	await expect(page.getByText('Hi Alex — enter your PIN')).toBeVisible();
+	for (const digit of '1234') {
+		await page.getByRole('button', { name: digit, exact: true }).click();
+	}
+	await page.getByRole('button', { name: "Let's go" }).click();
+	await page.waitForURL('**/dashboard');
+});
+
+test('locked board bounces URL escapes back to the board', async ({ page }) => {
+	await login(page, 'Alex', '1234');
+	await page.goto('/board');
+
+	await page.getByRole('button', { name: '🔒 Lock' }).click();
+	await expect(page.getByText(/locked — tap a face/)).toBeVisible();
+
+	// The kid-types-a-URL attack: straight back to the board.
+	await page.goto('/dashboard');
+	await page.waitForURL('**/board');
+	await expect(page.getByRole('heading', { name: /Family board/ })).toBeVisible();
+
+	// PIN is the only way out.
+	await page.getByRole('button', { name: /Alex/ }).click();
+	for (const digit of '1234') {
+		await page.getByRole('button', { name: digit, exact: true }).click();
+	}
+	await page.getByRole('button', { name: "Let's go" }).click();
+	await page.waitForURL('**/dashboard');
+});

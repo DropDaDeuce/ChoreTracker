@@ -22,6 +22,11 @@ export const sessions = sqliteTable('sessions', {
 	userId: integer('user_id')
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
+	/**
+	 * 'kiosk' = a locked family-board session (wall tablet): it can ONLY view
+	 * /board; every other route bounces back there until someone PINs in.
+	 */
+	kind: text('kind', { enum: ['user', 'kiosk'] }).notNull().default('user'),
 	expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
 });
 

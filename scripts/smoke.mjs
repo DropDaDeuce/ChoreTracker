@@ -480,6 +480,21 @@ check('kiosk switch logs in as the tapped person', goodSwitch.status === 303 && 
 const rileyEarnings = await get('/earnings', goodSwitch.session);
 check('switched session is Riley (sees only own earnings)', rileyEarnings.body.includes('Riley') && !rileyEarnings.body.includes('>Sam<'));
 
+// Kiosk lock: a locked board session can see ONLY the board.
+const kioskSession = await login('1', '1234');
+const lockRes = await post('/board?/lock', {}, kioskSession);
+check('board lock issues a kiosk session', lockRes.status === 200 && Boolean(lockRes.session));
+const lockedDash = await get('/dashboard', lockRes.session);
+check('locked kiosk bounces /dashboard back to the board', lockedDash.status === 303 && lockedDash.location === '/board');
+const lockedAdmin = await get('/admin/chores', lockRes.session);
+check('locked kiosk bounces admin pages too', lockedAdmin.status === 303 && lockedAdmin.location === '/board');
+const lockedBoard = await get('/board', lockRes.session);
+check('locked kiosk still renders the board', lockedBoard.status === 200 && lockedBoard.body.includes('Family board'));
+const unlockSwitch = await post('/board?/switch', { userId: '2', pin: '1111' }, lockRes.session);
+check('PIN switch escapes the locked kiosk', unlockSwitch.status === 303 && Boolean(unlockSwitch.session));
+const unlockedDash = await get('/dashboard', unlockSwitch.session);
+check('post-unlock session reaches the dashboard', unlockedDash.status === 200);
+
 // 10. Logout kills the session
 const out = await post('/logout', {}, alex);
 check('logout redirects', out.status === 303);

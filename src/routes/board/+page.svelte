@@ -28,7 +28,7 @@
 		};
 	});
 
-	function openSwitch(person: (typeof data.people)[number]) {
+	function openSwitch(person: { id: number; name: string; avatarColor: string }) {
 		switching = { id: person.id, name: person.name, avatarColor: person.avatarColor };
 		pin = '';
 	}
@@ -53,9 +53,29 @@
 		</div>
 		<div class="text-right">
 			<p class="text-3xl font-bold text-slate-700">{TIME_FMT.format(now)}</p>
-			<a href="/dashboard" class="text-sm text-slate-400 underline decoration-slate-300 hover:text-slate-600">
-				exit board
-			</a>
+			<div class="mt-0.5 flex items-center justify-end gap-3 text-sm">
+				{#if data.me.kiosk}
+					<span class="font-medium text-slate-400">🔒 locked — tap a face to log in</span>
+				{:else}
+					<!-- Leaving ALWAYS costs a PIN — a parked tablet must never
+					     hand out the opener's profile. -->
+					<button
+						type="button"
+						class="text-slate-400 underline decoration-slate-300 hover:text-slate-600"
+						onclick={() => openSwitch({ id: data.me.id, name: data.me.name, avatarColor: data.me.avatarColor })}
+					>
+						exit board
+					</button>
+					<form method="POST" action="?/lock" use:enhance={submit()}>
+						<button
+							class="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 active:bg-slate-300"
+							title="Wall-tablet mode: after locking, leaving the board always needs a PIN — even by URL."
+						>
+							🔒 Lock
+						</button>
+					</form>
+				{/if}
+			</div>
 		</div>
 	</div>
 
@@ -136,6 +156,9 @@
 
 	<p class="text-center text-xs text-slate-400">
 		Tap your face to log in and mark things done. The board refreshes itself.
+		{#if !data.me.kiosk}
+			Parking this on a wall tablet? Tap 🔒 Lock so leaving always needs a PIN.
+		{/if}
 	</p>
 </main>
 

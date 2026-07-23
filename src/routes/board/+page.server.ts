@@ -1,6 +1,6 @@
 import {
 	createSession,
-	requireUser,
+	destroySession,
 	SESSION_COOKIE,
 	SESSION_COOKIE_OPTIONS,
 	verifyPin
@@ -20,7 +20,10 @@ import type { Actions, PageServerLoad } from './$types';
  * kiosk session to them (a real login — doneBy/audit stays honest).
  */
 export const load: PageServerLoad = ({ locals }) => {
-	requireUser(locals);
+	// Deliberately NOT requireUser: locked kiosk sessions may view the board
+	// (requireUser would bounce them right back here anyway).
+	if (!locals.user) redirect(303, '/');
+	const me = locals.user;
 	const today = todayLocal();
 	const startOfToday = new Date();
 	startOfToday.setHours(0, 0, 0, 0);
@@ -61,6 +64,7 @@ export const load: PageServerLoad = ({ locals }) => {
 
 	return {
 		today,
+		me: { id: me.id, name: me.name, avatarColor: me.avatarColor, kiosk: me.kiosk },
 		people: family.map((person) => ({
 			...person,
 			...forUser(person.id),
@@ -72,9 +76,10 @@ export const load: PageServerLoad = ({ locals }) => {
 
 export const actions: Actions = {
 	// Kiosk fast-switch: same verification as the login page, so marking done
-	// afterwards is attributed to the right person.
+	// afterwards is attributed to the right person. Allowed FROM a locked
+	// kiosk session — the PIN is the gate, not the old session.
 	switch: async ({ request, cookies, locals }) => {
-		requireUser(locals);
+		if (!locals.user) redirect(303, '/');
 		const form = await request.formData();
 		const userId = Number(form.get('userId'));
 		const pin = String(form.get('pin') ?? '');
@@ -84,8 +89,22 @@ export const actions: Actions = {
 			return fail(400, { message: 'Wrong PIN — try again.', userId });
 		}
 
+		const oldToken = cookies.get(SESSION_COOKIE);
+		if (oldToken) destroySession(oldToken);
 		const { token, expiresAt } = createSession(user.id);
 		cookies.set(SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTIONS, expires: expiresAt });
 		redirect(303, '/dashboard');
+	},
+
+	// One-tap lock: swap the personal session for a board-only kiosk session.
+	// After this, every page except /board demands a PIN (via face-tap).
+	lock: ({ cookies, locals }) => {
+		if (!locals.user) redirect(303, '/');
+		if (locals.user.kiosk) return { success: true }; // already locked
+		const oldToken = cookies.get(SESSION_COOKIE);
+		if (oldToken) destroySession(oldToken);
+		const { token, expiresAt } = createSession(locals.user.id, 'kiosk');
+		cookies.set(SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTIONS, expires: expiresAt });
+		return { success: true };
 	}
 };
