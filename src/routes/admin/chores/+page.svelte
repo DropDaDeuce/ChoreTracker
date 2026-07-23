@@ -2,8 +2,14 @@
 	import { enhance } from '$app/forms';
 	import { ROOM_PRESETS } from '$lib/choreLibrary';
 	import { describeRecurrence } from '$lib/choreText';
+	import IconPicker from '$lib/components/IconPicker.svelte';
 	import { formatCents } from '$lib/money';
 	import { submit } from '$lib/submit';
+
+	const ROOM_ICONS = [
+		'🏠', '🍳', '🛁', '🛏️', '🛋️', '🍽️', '🧺', '🚪', '🧸', '💻',
+		'🚗', '🌱', '🐾', '🎮', '📚', '🏋️', '🎨', '🎹', '🔧', '❄️'
+	];
 
 	let { data, form } = $props();
 
@@ -107,18 +113,23 @@
 				use:enhance={submit(() => {
 					addingRoom = false;
 					customName = '';
+					customIcon = '🏠';
 				})}
-				class="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4"
+				class="space-y-3 border-t border-slate-100 pt-4"
 			>
-				<label class="block w-16">
-					<span class="mb-1 block text-xs font-medium text-slate-500">Icon</span>
-					<input name="icon" bind:value={customIcon} maxlength="16" class="w-full rounded-lg border border-slate-300 px-2 py-2 text-center" />
-				</label>
-				<label class="block flex-1">
-					<span class="mb-1 block text-xs font-medium text-slate-500">Your own room name</span>
-					<input name="name" bind:value={customName} required maxlength="50" placeholder="e.g. Alex's bedroom" class="w-full min-w-36 rounded-lg border border-slate-300 px-3 py-2" />
-				</label>
-				<button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white">Add</button>
+				<div>
+					<span class="mb-1.5 block text-xs font-medium text-slate-500">Pick an icon</span>
+					<IconPicker name="icon" bind:value={customIcon} options={ROOM_ICONS} />
+				</div>
+				<div class="flex flex-wrap items-end gap-2">
+					<label class="block flex-1">
+						<span class="mb-1 block text-xs font-medium text-slate-500">Your own room name</span>
+						<input name="name" bind:value={customName} required maxlength="50" placeholder="e.g. Alex's bedroom" class="w-full min-w-36 rounded-lg border border-slate-300 px-3 py-2" />
+					</label>
+					<button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white">
+						Add {customIcon} {customName || 'room'}
+					</button>
+				</div>
 			</form>
 			<p class="text-xs text-slate-400">
 				Tip: add a preset twice and rename it — "Bedroom" works fine as "Alex's bedroom" and "Sam's bedroom".

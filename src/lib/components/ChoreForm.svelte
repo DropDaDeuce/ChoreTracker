@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { MONTH_LABELS, WEEKDAY_LABELS } from '$lib/choreText';
+	import IconPicker from '$lib/components/IconPicker.svelte';
 	import { submit } from '$lib/submit';
+
+	const CHORE_ICONS = [
+		'🧹', '🧽', '🧼', '🪣', '🗑️', '♻️', '🍽️', '🧺', '👕', '🛏️',
+		'🪴', '💧', '🐕', '🐈', '🥣', '🌀', '🪶', '📚', '🍂', '📦'
+	];
 
 	interface Person {
 		id: number;
@@ -57,6 +63,8 @@
 	// svelte-ignore state_referenced_locally -- form fields intentionally start from the initial values
 	let frequency = $state(initial.frequency);
 	// svelte-ignore state_referenced_locally
+	let icon = $state(initial.icon);
+	// svelte-ignore state_referenced_locally
 	let assignmentType = $state(initial.assignmentType);
 	// svelte-ignore state_referenced_locally
 	let pool = $state<number[]>([...initial.assigneeIds]);
@@ -88,28 +96,21 @@
 </script>
 
 <form method="POST" {action} use:enhance={submit()} class="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
-	<div class="flex gap-3">
-		<label class="block w-20">
-			<span class="mb-1 block text-sm font-medium text-slate-700">Icon</span>
-			<input
-				name="icon"
-				maxlength="16"
-				value={initial.icon}
-				class="w-full rounded-lg border border-slate-300 px-2 py-2 text-center"
-				placeholder="🧹"
-			/>
-		</label>
-		<label class="block flex-1">
-			<span class="mb-1 block text-sm font-medium text-slate-700">Title</span>
-			<input
-				name="title"
-				required
-				maxlength="100"
-				value={initial.title}
-				class="w-full rounded-lg border border-slate-300 px-3 py-2"
-				placeholder="e.g. Empty the dishwasher"
-			/>
-		</label>
+	<label class="block">
+		<span class="mb-1 block text-sm font-medium text-slate-700">Title</span>
+		<input
+			name="title"
+			required
+			maxlength="100"
+			value={initial.title}
+			class="w-full rounded-lg border border-slate-300 px-3 py-2"
+			placeholder="e.g. Empty the dishwasher"
+		/>
+	</label>
+
+	<div>
+		<span class="mb-1.5 block text-sm font-medium text-slate-700">Icon</span>
+		<IconPicker name="icon" bind:value={icon} options={CHORE_ICONS} allowNone />
 	</div>
 
 	{#if rooms.length > 0}
