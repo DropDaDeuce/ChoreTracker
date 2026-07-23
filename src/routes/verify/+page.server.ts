@@ -97,18 +97,30 @@ export const actions: Actions = {
 			});
 		}
 	}),
-	reject: instanceAction((id, adultId) => {
+	reject: async ({ request, locals }) => {
+		const adult = requireAdult(locals);
+		const form = await request.formData();
+		const id = Number(form.get('instanceId'));
+		const note = String(form.get('note') ?? '')
+			.trim()
+			.slice(0, 200);
 		const before = instanceContext(id);
-		rejectInstance(db, id, adultId);
+		try {
+			rejectInstance(db, id, adult.id, note);
+		} catch (err) {
+			if (err instanceof InstanceActionError) return fail(400, { message: err.message });
+			throw err;
+		}
 		deletePhoto(before?.instance.photoPath); // redo means fresh proof
 		if (before) {
 			notifyUser(db, before.instance.assigneeId, {
 				title: `↩ ${before.chore.title} needs another go`,
-				body: 'It was sent back — give it one more try.',
+				body: note ? `Sent back: ${note}` : 'It was sent back — give it one more try.',
 				url: '/dashboard'
 			});
 		}
-	}),
+		return { success: true };
+	},
 	remind: instanceAction((id, adultId) => {
 		addReminder(db, id, adultId);
 		const ctx = instanceContext(id);

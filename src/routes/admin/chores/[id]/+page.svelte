@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import ChoreForm from '$lib/components/ChoreForm.svelte';
+	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
 
@@ -19,7 +20,7 @@
 			<a href="/admin/chores" class="text-sm text-slate-500 hover:text-slate-800">← All chores</a>
 			<h1 class="mt-1 text-2xl font-bold text-slate-800">{data.chore.title}</h1>
 		</div>
-		<form method="POST" action="?/toggleActive" use:enhance>
+		<form method="POST" action="?/toggleActive" use:enhance={submit()}>
 			<button
 				class="rounded-xl px-4 py-2 text-sm font-semibold {data.chore.isActive
 					? 'bg-slate-200 text-slate-700'

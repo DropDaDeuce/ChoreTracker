@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { formatCents } from '$lib/money';
+	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
+
+	// Paying out is irreversible (append-only ledger) — ask before we write it.
+	let confirmingId = $state<number | null>(null);
 
 	const typeLabels: Record<string, string> = {
 		earning: 'Earned',
@@ -52,11 +56,41 @@
 					</p>
 				</div>
 				{#if data.isAdult && person.balance > 0}
-					<form method="POST" action="?/payout" use:enhance>
+					<form
+						method="POST"
+						action="?/payout"
+						use:enhance={submit(() => (confirmingId = null))}
+						class="flex items-center gap-2 {confirmingId === person.id
+							? 'rounded-xl bg-emerald-50 p-2'
+							: ''}"
+					>
 						<input type="hidden" name="kidId" value={person.id} />
-						<button class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white">
-							Pay out {formatCents(person.balance, data.currency)}
-						</button>
+						{#if confirmingId === person.id}
+							<span class="text-xs font-medium text-emerald-900">
+								Hand over {formatCents(person.balance, data.currency)}?
+							</span>
+							<button class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">
+								Yes, paid ✓
+							</button>
+							<button
+								type="button"
+								class="px-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+								onclick={() => (confirmingId = null)}
+							>
+								Cancel
+							</button>
+						{:else}
+							<!-- With JS the first click only arms the confirm; without JS it submits. -->
+							<button
+								class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white"
+								onclick={(e) => {
+									e.preventDefault();
+									confirmingId = person.id;
+								}}
+							>
+								Pay out {formatCents(person.balance, data.currency)}
+							</button>
+						{/if}
 					</form>
 				{/if}
 			</div>
@@ -69,7 +103,7 @@
 					<form
 						method="POST"
 						action="?/adjust"
-						use:enhance
+						use:enhance={submit()}
 						class="mt-2 flex flex-wrap items-end gap-2 rounded-xl bg-slate-50 p-3"
 					>
 						<input type="hidden" name="kidId" value={person.id} />

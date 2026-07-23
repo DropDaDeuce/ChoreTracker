@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { AVATAR_COLORS } from '$lib/colors';
+	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
 
@@ -55,7 +56,7 @@
 						>
 							Reset PIN
 						</button>
-						<form method="POST" action="?/toggleActive" use:enhance>
+						<form method="POST" action="?/toggleActive" use:enhance={submit()}>
 							<input type="hidden" name="userId" value={person.id} />
 							<button class="text-sm font-medium {person.isActive ? 'text-red-500 hover:text-red-700' : 'text-emerald-600 hover:text-emerald-800'}">
 								{person.isActive ? 'Deactivate' : 'Reactivate'}
@@ -102,7 +103,7 @@
 		<h2 class="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">
 			Add a family member
 		</h2>
-		<form method="POST" action="?/add" use:enhance class="space-y-4 rounded-2xl bg-white p-5 shadow-sm">
+		<form method="POST" action="?/add" use:enhance={submit()} class="space-y-4 rounded-2xl bg-white p-5 shadow-sm">
 			<div class="grid gap-4 sm:grid-cols-2">
 				<label class="block">
 					<span class="mb-1 block text-sm font-medium text-slate-700">Name</span>

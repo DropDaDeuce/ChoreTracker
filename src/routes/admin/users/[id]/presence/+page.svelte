@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { MONTH_LABELS } from '$lib/choreText';
 	import { describePresenceRule, WEEKDAY_FULL } from '$lib/presenceText';
+	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
 
@@ -143,7 +144,7 @@
 				{#each data.rules as r (r.id)}
 					<li class="flex items-center gap-2 py-2 text-sm">
 						<span class="flex-1 text-slate-700">{describePresenceRule(r)}</span>
-						<form method="POST" action="?/deleteRule" use:enhance>
+						<form method="POST" action="?/deleteRule" use:enhance={submit()}>
 							<input type="hidden" name="ruleId" value={r.id} />
 							<button class="text-xs font-medium text-red-500 hover:text-red-700">Remove</button>
 						</form>
@@ -153,7 +154,7 @@
 			<p class="mt-2 text-xs text-slate-400">Newer patterns win when they overlap.</p>
 		{/if}
 
-		<form method="POST" action="?/addRule" use:enhance class="mt-4 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4">
+		<form method="POST" action="?/addRule" use:enhance={submit()} class="mt-4 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4">
 			<label class="block">
 				<span class="mb-1 block text-xs font-medium text-slate-500">Mark as</span>
 				<select name="isHome" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
@@ -196,13 +197,13 @@
 	</section>
 
 	<!-- hidden forms driven by day clicks / context menu -->
-	<form bind:this={toggleForm} method="POST" action="?/toggleDay" use:enhance class="hidden">
+	<form bind:this={toggleForm} method="POST" action="?/toggleDay" use:enhance={submit()} class="hidden">
 		<input type="hidden" name="date" value={actionDate} />
 	</form>
-	<form bind:this={resetForm} method="POST" action="?/resetDay" use:enhance class="hidden">
+	<form bind:this={resetForm} method="POST" action="?/resetDay" use:enhance={submit()} class="hidden">
 		<input type="hidden" name="date" value={actionDate} />
 	</form>
-	<form bind:this={ruleForm} method="POST" action="?/addRule" use:enhance class="hidden">
+	<form bind:this={ruleForm} method="POST" action="?/addRule" use:enhance={submit()} class="hidden">
 		<input type="hidden" name="kind" value={rule.kind} />
 		<input type="hidden" name="isHome" value={rule.isHome} />
 		<input type="hidden" name="weekday" value={rule.weekday} />

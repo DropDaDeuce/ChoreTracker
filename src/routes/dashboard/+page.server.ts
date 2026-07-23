@@ -11,7 +11,12 @@ import {
 	markDone,
 	undoMarkDone
 } from '$lib/server/instances';
-import { getSettingInt, UNDO_WINDOW_MINUTES_KEY } from '$lib/server/settings';
+import { computePayoutCents } from '$lib/server/payout';
+import {
+	getSettingInt,
+	REMINDER_PENALTY_PERCENT_KEY,
+	UNDO_WINDOW_MINUTES_KEY
+} from '$lib/server/settings';
 import { currentStreak } from '$lib/server/stats';
 import { deletePhoto, savePhoto, UploadError } from '$lib/server/uploads';
 import { fail } from '@sveltejs/kit';
@@ -31,7 +36,18 @@ export const load: PageServerLoad = ({ locals }) => {
 			.orderBy(asc(choreInstances.dueDate))
 			.all();
 
-	const open = mine(and(eq(choreInstances.status, 'pending'), lte(choreInstances.dueDate, today)));
+	// payoutPreview powers the "you'd earn X" hint and the done-celebration.
+	const penaltyPercent = getSettingInt(db, REMINDER_PENALTY_PERCENT_KEY, 50);
+	const open = mine(
+		and(eq(choreInstances.status, 'pending'), lte(choreInstances.dueDate, today))
+	).map((row) => ({
+		...row,
+		payoutPreview: computePayoutCents(
+			row.chore.allowanceCents,
+			row.instance.reminderCount,
+			penaltyPercent
+		)
+	}));
 	const awaiting = mine(eq(choreInstances.status, 'done'));
 	const upcoming = mine(
 		and(eq(choreInstances.status, 'pending'), gt(choreInstances.dueDate, today))
@@ -48,11 +64,15 @@ export const load: PageServerLoad = ({ locals }) => {
 		.select({ instance: choreInstances, chore: chores })
 		.from(choreInstances)
 		.innerJoin(chores, eq(choreInstances.choreId, chores.id))
-		.where(and(eq(choreInstances.assigneeId, user.id), eq(choreInstances.status, 'verified')))
+		.where(
+			and(
+				eq(choreInstances.assigneeId, user.id),
+				eq(choreInstances.status, 'verified'),
+				gte(choreInstances.verifiedAt, startOfToday)
+			)
+		)
 		.orderBy(desc(choreInstances.verifiedAt))
-		.limit(10)
 		.all()
-		.filter((row) => (row.instance.verifiedAt?.getTime() ?? 0) >= startOfToday.getTime())
 		.map((row) => ({
 			...row,
 			canUndo:

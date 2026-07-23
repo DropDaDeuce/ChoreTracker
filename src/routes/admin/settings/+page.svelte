@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
 </script>
@@ -11,7 +12,7 @@
 <main class="mx-auto max-w-2xl space-y-6 p-4 pb-16">
 	<h1 class="pt-4 text-2xl font-bold text-slate-800">Settings</h1>
 
-	<form method="POST" use:enhance class="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
+	<form method="POST" use:enhance={submit()} class="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
 		<div class="grid gap-4 sm:grid-cols-2">
 			<label class="block">
 				<span class="mb-1 block text-sm font-medium text-slate-700">Currency symbol</span>

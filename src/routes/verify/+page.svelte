@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { formatCents } from '$lib/money';
+	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
+
+	// Which queue item currently shows the send-back reason input.
+	let rejectingId = $state<number | null>(null);
 </script>
 
 <svelte:head>
@@ -70,25 +74,52 @@
 							</a>
 						{/if}
 						<div class="mt-3 flex flex-wrap gap-2">
-							<form method="POST" action="?/verify" use:enhance>
+							<form method="POST" action="?/verify" use:enhance={submit()}>
 								<input type="hidden" name="instanceId" value={instance.id} />
 								<button class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
 									Verify ✓
 								</button>
 							</form>
-							<form method="POST" action="?/reject" use:enhance>
-								<input type="hidden" name="instanceId" value={instance.id} />
-								<button class="rounded-lg bg-red-100 px-4 py-2 text-sm font-semibold text-red-700">
-									Reject ↩
-								</button>
-							</form>
-							<form method="POST" action="?/remind" use:enhance>
+							<button
+								type="button"
+								class="rounded-lg bg-red-100 px-4 py-2 text-sm font-semibold text-red-700"
+								onclick={() => (rejectingId = rejectingId === instance.id ? null : instance.id)}
+							>
+								Reject ↩
+							</button>
+							<form method="POST" action="?/remind" use:enhance={submit()}>
 								<input type="hidden" name="instanceId" value={instance.id} />
 								<button class="rounded-lg bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-700">
 									+1 reminder 🔔
 								</button>
 							</form>
 						</div>
+						{#if rejectingId === instance.id}
+							<form
+								method="POST"
+								action="?/reject"
+								use:enhance={submit(() => (rejectingId = null))}
+								class="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-red-50 p-2.5"
+							>
+								<input type="hidden" name="instanceId" value={instance.id} />
+								<input
+									name="note"
+									maxlength="200"
+									placeholder="Why? e.g. Floor still has crumbs (optional)"
+									class="min-w-40 flex-1 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm"
+								/>
+								<button class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">
+									Send back
+								</button>
+								<button
+									type="button"
+									class="px-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+									onclick={() => (rejectingId = null)}
+								>
+									Cancel
+								</button>
+							</form>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -123,7 +154,7 @@
 								{/if}
 							</span>
 						</div>
-						<form method="POST" action="?/remind" use:enhance>
+						<form method="POST" action="?/remind" use:enhance={submit()}>
 							<input type="hidden" name="instanceId" value={instance.id} />
 							<button class="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700">
 								+1 🔔

@@ -9,6 +9,19 @@
 }
 
 @layer base {
+	/* A form whose action is in flight (see $lib/submit.ts): its disabled
+	   submit buttons pulse so every tap gets visible feedback. */
+	form[data-submitting] button:disabled,
+	button[form]:disabled {
+		cursor: progress;
+		animation: submit-pulse 1s ease-in-out infinite;
+	}
+	@keyframes submit-pulse {
+		50% {
+			opacity: 0.45;
+		}
+	}
+
 	/* Taps act immediately — no double-tap-zoom delay on interactive elements. */
 	a,
 	button,

@@ -8,7 +8,7 @@ import { isHome } from './presence';
 /** Presence mutations — every change re-syncs the scheduled instances. */
 
 /** Flip one day relative to its current effective value. */
-export function toggleDay(db: DB, userId: number, date: string): void {
+export function toggleDay(db: DB, userId: number, date: string, today = todayLocal()): void {
 	const next = !isHome(db, userId, date);
 	db.insert(presenceDays)
 		.values({ userId, date, isHome: next })
@@ -17,15 +17,15 @@ export function toggleDay(db: DB, userId: number, date: string): void {
 			set: { isHome: next }
 		})
 		.run();
-	applyPresenceChange(db, userId);
+	applyPresenceChange(db, userId, today);
 }
 
 /** Remove a single-day override so the day falls back to its pattern. */
-export function resetDay(db: DB, userId: number, date: string): void {
+export function resetDay(db: DB, userId: number, date: string, today = todayLocal()): void {
 	db.delete(presenceDays)
 		.where(and(eq(presenceDays.userId, userId), eq(presenceDays.date, date)))
 		.run();
-	applyPresenceChange(db, userId);
+	applyPresenceChange(db, userId, today);
 }
 
 export function addRule(
@@ -37,7 +37,8 @@ export function addRule(
 		anchorDate?: string;
 		dayOfMonth?: number;
 		isHome: boolean;
-	}
+	},
+	today = todayLocal()
 ): void {
 	db.insert(presenceRules)
 		.values({
@@ -49,14 +50,14 @@ export function addRule(
 			isHome: rule.isHome
 		})
 		.run();
-	applyPresenceChange(db, userId);
+	applyPresenceChange(db, userId, today);
 }
 
-export function deleteRule(db: DB, userId: number, ruleId: number): void {
+export function deleteRule(db: DB, userId: number, ruleId: number, today = todayLocal()): void {
 	db.delete(presenceRules)
 		.where(and(eq(presenceRules.id, ruleId), eq(presenceRules.userId, userId)))
 		.run();
-	applyPresenceChange(db, userId);
+	applyPresenceChange(db, userId, today);
 }
 
 /**

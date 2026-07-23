@@ -70,11 +70,11 @@ describe('isHome resolution', () => {
 
 	it('day overrides beat rules; reset falls back to the rule', () => {
 		makeRule({ kind: 'weekly', weekday: 2, isHome: false });
-		toggleDay(db, kid.id, TODAY); // flips away -> home for just this day
+		toggleDay(db, kid.id, TODAY, TODAY); // flips away -> home for just this day
 		expect(isHome(db, kid.id, TODAY)).toBe(true);
 		expect(isHome(db, kid.id, '2026-07-22')).toBe(false); // other Wednesdays unaffected
 
-		resetDay(db, kid.id, TODAY);
+		resetDay(db, kid.id, TODAY, TODAY);
 		expect(isHome(db, kid.id, TODAY)).toBe(false);
 	});
 });
@@ -110,7 +110,7 @@ describe('presence-aware generation', () => {
 	});
 
 	it('fixed chores skip away days entirely', () => {
-		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false }); // away Thursdays
+		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false }, TODAY); // away Thursdays
 		const chore = makeChore({}, [kid.id]);
 
 		generateDueInstances(db, TODAY);
@@ -122,7 +122,7 @@ describe('presence-aware generation', () => {
 
 	it('rotations hand the turn to whoever is home', () => {
 		const riley = insertUser(db, 'Riley', 'kid');
-		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false }); // Sam away Thursdays
+		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false }, TODAY); // Sam away Thursdays
 		const chore = makeChore({ assignmentType: 'rotating' }, [kid.id, riley.id]);
 
 		generateDueInstances(db, TODAY);
@@ -138,8 +138,8 @@ describe('presence-aware generation', () => {
 
 	it('rotation skips the day when the whole pool is away', () => {
 		const riley = insertUser(db, 'Riley', 'kid');
-		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false });
-		addRule(db, riley.id, { kind: 'weekly', weekday: 3, isHome: false });
+		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false }, TODAY);
+		addRule(db, riley.id, { kind: 'weekly', weekday: 3, isHome: false }, TODAY);
 		const chore = makeChore({ assignmentType: 'rotating' }, [kid.id, riley.id]);
 
 		generateDueInstances(db, TODAY);
@@ -157,7 +157,7 @@ describe('presence-aware generation', () => {
 		generateDueInstances(db, TODAY);
 
 		// Sam leaves for Thursday the 16th (rule added AFTER instances exist).
-		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false });
+		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false }, TODAY);
 
 		const fixedThursdays = instancesOf(fixed.id).filter(
 			(r) => r.dueDate === '2026-07-16' || r.dueDate === '2026-07-23'
@@ -188,7 +188,7 @@ describe('presence-aware generation', () => {
 			.where(eq(choreInstances.id, first.id))
 			.run();
 
-		addRule(db, kid.id, { kind: 'weekly', weekday: 2, isHome: false }); // away Wednesdays incl. TODAY
+		addRule(db, kid.id, { kind: 'weekly', weekday: 2, isHome: false }, TODAY); // away Wednesdays incl. TODAY
 
 		const kept = instancesOf(chore.id).find((r) => r.id === first.id);
 		expect(kept?.status).toBe('verified'); // only PENDING rows get dropped

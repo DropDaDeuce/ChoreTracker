@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import PinPad from '$lib/components/PinPad.svelte';
+	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
 
@@ -48,7 +49,7 @@
 			enter your PIN
 		</p>
 
-		<form method="POST" action="?/login" use:enhance class="w-full max-w-xs">
+		<form method="POST" action="?/login" use:enhance={submit()} class="w-full max-w-xs">
 			<input type="hidden" name="userId" value={selected.id} />
 			<input type="hidden" name="pin" value={pin} />
 			<PinPad bind:value={pin} />

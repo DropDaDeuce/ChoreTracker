@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { MONTH_LABELS, WEEKDAY_LABELS } from '$lib/choreText';
+	import { submit } from '$lib/submit';
 
 	interface Person {
 		id: number;
@@ -76,7 +77,7 @@
 	}
 </script>
 
-<form method="POST" {action} use:enhance class="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
+<form method="POST" {action} use:enhance={submit()} class="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
 	<label class="block">
 		<span class="mb-1 block text-sm font-medium text-slate-700">Title</span>
 		<input

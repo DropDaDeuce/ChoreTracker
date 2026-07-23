@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { AVATAR_COLORS } from '$lib/colors';
+	import { submit } from '$lib/submit';
 
 	let { form } = $props();
 </script>
@@ -15,7 +16,7 @@
 		Let's set up the first adult account. You'll add the rest of the family afterwards.
 	</p>
 
-	<form method="POST" use:enhance class="space-y-5 rounded-2xl bg-white p-6 shadow">
+	<form method="POST" use:enhance={submit()} class="space-y-5 rounded-2xl bg-white p-6 shadow">
 		<label class="block">
 			<span class="mb-1 block text-sm font-medium text-slate-700">Your name</span>
 			<input
