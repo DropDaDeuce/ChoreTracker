@@ -1,0 +1,1 @@
+DROP TABLE `chore_rotation_state`;

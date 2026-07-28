@@ -99,13 +99,9 @@ export const choreAssignees = sqliteTable(
 	(t) => [uniqueIndex('chore_assignees_chore_user_unique').on(t.choreId, t.userId)]
 );
 
-export const choreRotationState = sqliteTable('chore_rotation_state', {
-	choreId: integer('chore_id')
-		.primaryKey()
-		.references(() => chores.id, { onDelete: 'cascade' }),
-	/** Pool position of the most recently assigned person; -1 = nobody yet. */
-	lastPosition: integer('last_position').notNull().default(-1)
-});
+// NOTE: `chore_rotation_state` (a stored "last position" pointer) was dropped
+// in migration 0008. Rotation is derived from the instances themselves now —
+// see rotation.ts for why a pointer couldn't express away-day fairness.
 
 export const choreInstances = sqliteTable(
 	'chore_instances',

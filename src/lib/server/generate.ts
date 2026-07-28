@@ -4,7 +4,7 @@ import { choreAssignees, choreInstances, chores, users } from './db/schema';
 import type { DB } from './db/type';
 import { isHome } from './presence';
 import { nextOccurrence, occurrencesInRange, type Recurrence } from './recurrence';
-import { getLastPosition, nextPosition, setLastPosition } from './rotation';
+import { pickRotationAssignee, type Turn } from './rotation';
 
 /** Daily/weekly chores are materialized this many days ahead (today + 13). */
 export const ROLLING_WINDOW_DAYS = 14;
@@ -16,11 +16,13 @@ export const ROLLING_WINDOW_DAYS = 14;
  * - monthly/yearly: just the next occurrence, however far out.
  * - Idempotent: `UNIQUE(chore_id, due_date)` + insert-or-ignore make re-runs
  *   harmless, so this runs on every boot and every night without guards.
- * - Rotation advances only when a row is actually inserted, so re-runs never
- *   skip anyone's turn.
+ * - Rotation is least-recently-served and derived from the instances that
+ *   already exist (rotation.ts), so re-runs are stable and nobody's turn is
+ *   consumed by a day they didn't work.
  * - Presence-aware: nobody is scheduled on a day they're away (see
  *   presence.ts). Fixed chores simply skip that day; rotations hand the turn
- *   to the next person who IS home, or skip the day if nobody is.
+ *   to whoever has gone longest without it and IS home, or skip the day if
+ *   nobody is — and the person who was away is first in line when they return.
  * - Deactivated people are never scheduled (their pool entries are ignored).
  *
  * Returns the number of instances created.
@@ -49,22 +51,27 @@ export function generateDueInstances(db: DB, today = todayLocal()): number {
 			.all();
 		if (pool.length === 0) continue; // unassigned (or fully deactivated) chore
 
+		// Every turn this chore has ever handed out, past and already-scheduled.
+		// Rotation reads it to find who's gone longest without it; each insert
+		// appends, so picks stay correct across the whole run.
+		const turns: Turn[] =
+			chore.assignmentType === 'rotating'
+				? db
+						.select({ userId: choreInstances.assigneeId, dueDate: choreInstances.dueDate })
+						.from(choreInstances)
+						.where(eq(choreInstances.choreId, chore.id))
+						.all()
+				: [];
+
 		db.transaction((tx) => {
 			for (const dueDate of dates) {
 				let assigneeId: number | null = null;
-				let rotationPick: number | null = null;
 
 				if (chore.assignmentType === 'rotating') {
-					// Hand the turn to the next pool member who is home that day.
-					const last = getLastPosition(tx, chore.id);
-					for (let step = 0; step < pool.length; step++) {
-						const candidate = (nextPosition(last, pool.length) + step) % pool.length;
-						if (isHome(tx, pool[candidate].userId, dueDate)) {
-							rotationPick = candidate;
-							assigneeId = pool[candidate].userId;
-							break;
-						}
-					}
+					const pick = pickRotationAssignee(pool, turns, dueDate, (userId) =>
+						isHome(tx, userId, dueDate)
+					);
+					assigneeId = pick?.userId ?? null;
 				} else if (isHome(tx, pool[0].userId, dueDate)) {
 					assigneeId = pool[0].userId;
 				}
@@ -78,7 +85,7 @@ export function generateDueInstances(db: DB, today = todayLocal()): number {
 
 				if (result.changes > 0) {
 					created++;
-					if (rotationPick !== null) setLastPosition(tx, chore.id, rotationPick);
+					turns.push({ userId: assigneeId, dueDate });
 				}
 			}
 		});

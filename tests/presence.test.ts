@@ -228,6 +228,60 @@ describe('presence-aware generation', () => {
 		}
 	});
 
+	it('an away turn is covered, and the away person takes the very next day', () => {
+		// Sam's turns land on 07-15, 07-18, 07-21 … so making him away on
+		// Saturdays takes out a day that was genuinely his.
+		const riley = insertUser(db, 'Riley', 'kid');
+		const cal = insertUser(db, 'Cal', 'kid');
+		addRule(db, kid.id, { kind: 'weekly', weekday: 5, isHome: false }, TODAY); // away Saturdays
+		const chore = makeChore({ assignmentType: 'rotating' }, [kid.id, riley.id, cal.id]);
+
+		generateDueInstances(db, TODAY);
+
+		const byDate = new Map(instancesOf(chore.id).map((r) => [r.dueDate, r.assigneeId]));
+		expect(byDate.get('2026-07-18')).not.toBe(kid.id); // someone covered
+		expect([riley.id, cal.id]).toContain(byDate.get('2026-07-18'));
+		expect(byDate.get('2026-07-19')).toBe(kid.id); // back home, straight back in
+	});
+
+	it('going away mid-window reshuffles the turns still to come', () => {
+		// The regression: the rolling window is already materialized, so
+		// backfilling only the freed day leaves every later turn laid out as
+		// if Sam had never left — he'd idle until his old pre-computed slot.
+		const riley = insertUser(db, 'Riley', 'kid');
+		const cal = insertUser(db, 'Cal', 'kid');
+		const chore = makeChore({ assignmentType: 'rotating' }, [kid.id, riley.id, cal.id]);
+		generateDueInstances(db, TODAY);
+		expect(instancesOf(chore.id).find((r) => r.dueDate === '2026-07-18')?.assigneeId).toBe(kid.id);
+
+		addRule(db, kid.id, { kind: 'weekly', weekday: 5, isHome: false }, TODAY); // away Saturdays
+
+		const byDate = new Map(instancesOf(chore.id).map((r) => [r.dueDate, r.assigneeId]));
+		expect(byDate.get('2026-07-18')).not.toBe(kid.id);
+		expect(byDate.get('2026-07-19')).toBe(kid.id);
+		// Every day is still covered by exactly one person.
+		expect(instancesOf(chore.id)).toHaveLength(ROLLING_WINDOW_DAYS);
+	});
+
+	it('an away stretch spreads over the rest of the pool instead of one person', () => {
+		const riley = insertUser(db, 'Riley', 'kid');
+		const cal = insertUser(db, 'Cal', 'kid');
+		const chore = makeChore({ assignmentType: 'rotating' }, [kid.id, riley.id, cal.id]);
+		// Sam is gone for the first week of the window.
+		for (let d = 0; d < 7; d++) {
+			toggleDay(db, kid.id, ['2026-07-15', '2026-07-16', '2026-07-17', '2026-07-18',
+				'2026-07-19', '2026-07-20', '2026-07-21'][d], TODAY);
+		}
+
+		const week = instancesOf(chore.id).filter((r) => r.dueDate <= '2026-07-21');
+		expect(week.some((r) => r.assigneeId === kid.id)).toBe(false);
+		const rileyDays = week.filter((r) => r.assigneeId === riley.id).length;
+		const calDays = week.filter((r) => r.assigneeId === cal.id).length;
+		expect(Math.abs(rileyDays - calDays)).toBeLessThanOrEqual(1); // shared evenly
+		// And Sam is first up the day he's back.
+		expect(instancesOf(chore.id).find((r) => r.dueDate === '2026-07-22')?.assigneeId).toBe(kid.id);
+	});
+
 	it('rotation skips the day when the whole pool is away', () => {
 		const riley = insertUser(db, 'Riley', 'kid');
 		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false }, TODAY);

@@ -1,4 +1,4 @@
-import { choreAssignees, choreInstances, choreRotationState, chores } from '$lib/server/db/schema';
+import { choreAssignees, choreInstances, chores } from '$lib/server/db/schema';
 import { generateDueInstances, ROLLING_WINDOW_DAYS } from '$lib/server/generate';
 import { asc, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -107,26 +107,32 @@ describe('generateDueInstances', () => {
 		);
 	});
 
-	it('does not advance rotation on idempotent re-runs', () => {
+	it('does not disturb the rotation on idempotent re-runs', () => {
 		const a = insertUser(db, 'Ana', 'kid');
 		const b = insertUser(db, 'Ben', 'kid');
 		const chore = insertChore({ assignmentType: 'rotating' }, [a.id, b.id]);
 
 		generateDueInstances(db, TODAY);
-		const stateAfterFirst = db
-			.select()
-			.from(choreRotationState)
-			.where(eq(choreRotationState.choreId, chore.id))
-			.get();
+		const first = instancesOf(chore.id).map((r) => `${r.dueDate}:${r.assigneeId}`);
+
+		expect(generateDueInstances(db, TODAY)).toBe(0);
+		expect(instancesOf(chore.id).map((r) => `${r.dueDate}:${r.assigneeId}`)).toEqual(first);
+	});
+
+	it('picks up the rotation where it left off when the window slides', () => {
+		const a = insertUser(db, 'Ana', 'kid');
+		const b = insertUser(db, 'Ben', 'kid');
+		const c = insertUser(db, 'Cal', 'kid');
+		const chore = insertChore({ assignmentType: 'rotating' }, [a.id, b.id, c.id]);
 
 		generateDueInstances(db, TODAY);
-		const stateAfterSecond = db
-			.select()
-			.from(choreRotationState)
-			.where(eq(choreRotationState.choreId, chore.id))
-			.get();
+		generateDueInstances(db, '2026-07-16');
 
-		expect(stateAfterSecond).toEqual(stateAfterFirst);
-		expect(instancesOf(chore.id)).toHaveLength(ROLLING_WINDOW_DAYS);
+		// The new far edge continues the cycle rather than restarting it.
+		const rows = instancesOf(chore.id);
+		expect(rows).toHaveLength(ROLLING_WINDOW_DAYS + 1);
+		expect(rows.map((r) => r.assigneeId)).toEqual(
+			Array.from({ length: ROLLING_WINDOW_DAYS + 1 }, (_, i) => [a.id, b.id, c.id][i % 3])
+		);
 	});
 });
