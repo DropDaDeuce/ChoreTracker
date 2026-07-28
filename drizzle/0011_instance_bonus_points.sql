@@ -1,0 +1,1 @@
+ALTER TABLE `chore_instances` ADD `bonus_points` integer DEFAULT 0 NOT NULL;

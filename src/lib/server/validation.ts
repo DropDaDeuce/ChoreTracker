@@ -26,9 +26,14 @@ export const choreSchema = z
 		dayOfMonth: z.coerce.number().int().min(1).max(31).optional(),
 		monthOfYear: z.coerce.number().int().min(1).max(12).optional(),
 		startDate: z.string().refine(isDateString, 'Start date must be a valid date.'),
+		/**
+		 * The chore's weight: its claim on the day's allowance value, and what
+		 * point goals count. There is no per-chore money any more — the
+		 * household has one weekly pot (see docs/Plans).
+		 */
 		points: z.coerce.number().int().min(0).max(1000).default(0),
-		/** Dollars in the form; converted to cents on save. */
-		allowance: z.coerce.number().min(0).max(1000).default(0),
+		/** Extra credit: earns on top of the week instead of counting toward it. */
+		isBonus: z.boolean().default(false),
 		requiresVerification: z.boolean().default(true),
 		requiresPhoto: z.boolean().default(false),
 		graceDays: z.coerce.number().int().min(0).max(30).default(0),
@@ -81,7 +86,7 @@ export function choreFormToObject(form: FormData) {
 		monthOfYear: form.get('monthOfYear') || undefined,
 		startDate: form.get('startDate'),
 		points: form.get('points') || 0,
-		allowance: form.get('allowance') || 0,
+		isBonus: form.get('isBonus') === 'on',
 		requiresVerification: form.get('requiresVerification') === 'on',
 		requiresPhoto: form.get('requiresPhoto') === 'on',
 		graceDays: form.get('graceDays') || 0,

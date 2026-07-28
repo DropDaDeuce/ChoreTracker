@@ -7,9 +7,11 @@ import {
 	chores,
 	swapRequests
 } from '$lib/server/db/schema';
+import { computeHouseholdWeek, settleWeek, weekStartFor } from '$lib/server/allowance';
 import { deleteChore, verifiedCount } from '$lib/server/deleteChore';
 import { balanceCents, markDone, verifyInstance } from '$lib/server/instances';
 import { generateDueInstances } from '$lib/server/generate';
+import { setSetting, WEEKLY_ALLOWANCE_CENTS_KEY } from '$lib/server/settings';
 import { createTestDb, insertUser } from './helpers/testDb';
 
 const TODAY = '2026-07-15';
@@ -24,10 +26,10 @@ beforeEach(() => {
 	adult = insertUser(db, 'Alex', 'adult');
 });
 
-function makeChore(allowanceCents = 100) {
+function makeChore(points = 1) {
 	const chore = db
 		.insert(chores)
-		.values({ title: 'Dishes', frequency: 'daily', startDate: '2026-01-01', allowanceCents })
+		.values({ title: 'Dishes', frequency: 'daily', startDate: '2026-01-01', points })
 		.returning()
 		.get();
 	db.insert(choreAssignees).values({ choreId: chore.id, userId: kid.id, position: 0 }).run();
@@ -52,21 +54,24 @@ describe('deleteChore', () => {
 		expect(db.select().from(choreAssignees).all()).toHaveLength(0);
 	});
 
-	it('keeps earned money: ledger rows survive with the link nulled', () => {
-		const chore = makeChore(100);
+	it('keeps money already paid out for a settled week', () => {
+		setSetting(db, WEEKLY_ALLOWANCE_CENTS_KEY, '700');
+		const chore = makeChore();
 		const instance = db.select().from(choreInstances).all()[0];
 		markDone(db, instance.id, kid);
 		verifyInstance(db, instance.id, adult.id);
-		expect(balanceCents(db, kid.id)).toBe(100);
 		expect(verifiedCount(db, chore.id)).toBe(1);
+
+		const weekStart = weekStartFor(db, TODAY);
+		settleWeek(db, kid.id, weekStart, computeHouseholdWeek(db, weekStart), adult.id);
+		const paid = balanceCents(db, kid.id);
+		expect(paid).toBeGreaterThan(0);
 
 		deleteChore(db, chore.id);
 
-		expect(balanceCents(db, kid.id)).toBe(100); // money untouched
-		const ledger = db.select().from(allowanceLedger).all();
-		expect(ledger).toHaveLength(1);
-		expect(ledger[0].instanceId).toBeNull();
-		expect(ledger[0].note).toContain('Dishes'); // note still names the chore
+		// Deleting a chore rewrites the schedule, never the bank balance.
+		expect(balanceCents(db, kid.id)).toBe(paid);
+		expect(db.select().from(allowanceLedger).all()).toHaveLength(1);
 		expect(db.select().from(choreInstances).all()).toHaveLength(0);
 	});
 

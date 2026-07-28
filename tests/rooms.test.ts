@@ -4,6 +4,7 @@ import { CHORE_TEMPLATES, ROOM_PRESETS, templatesFor } from '$lib/choreLibrary';
 import { addAssignee, removeAssignee } from '$lib/server/assignments';
 import { choreAssignees, choreInstances, chores } from '$lib/server/db/schema';
 import { createFromTemplates } from '$lib/server/library';
+import { DEFAULT_POINTS } from '$lib/points';
 import { createRoom, deleteRoom, listRooms } from '$lib/server/roomAdmin';
 import { createTestDb, insertUser } from './helpers/testDb';
 
@@ -24,7 +25,6 @@ describe('the shipped catalog', () => {
 			expect(new Set(templates.map((t) => t.title)).size, roomKey).toBe(templates.length);
 			for (const t of templates) {
 				expect(['daily', 'weekly', 'monthly', 'yearly'], t.title).toContain(t.frequency);
-				expect(t.points, t.title).toBeGreaterThan(0);
 				expect(t.icon, t.title).not.toBe('');
 				if (t.frequency === 'yearly') expect(t.monthOfYear, t.title).toBeGreaterThanOrEqual(1);
 			}
@@ -78,7 +78,8 @@ describe('library multi-add', () => {
 		const rows = db.select().from(chores).orderBy(asc(chores.title)).all();
 		expect(rows).toHaveLength(2);
 		expect(rows.every((c) => c.roomId === kitchen)).toBe(true);
-		expect(rows.every((c) => c.allowanceCents === 0)).toBe(true); // money is family policy
+		// Weight defaults from frequency; there is no per-chore money at all.
+		expect(rows.every((c) => c.points === DEFAULT_POINTS[c.frequency])).toBe(true);
 		expect(db.select().from(choreAssignees).all()).toHaveLength(0);
 		expect(db.select().from(choreInstances).all()).toHaveLength(0); // nothing scheduled
 	});

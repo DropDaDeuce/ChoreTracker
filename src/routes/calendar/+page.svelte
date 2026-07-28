@@ -5,15 +5,15 @@
 
 	const WEEKDAYS_MON = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+	// The week can start on any day (a Sat–Fri allowance week is normal), so
+	// both the header row and the leading blanks rotate by the start index.
 	const weekdayLabels = $derived(
-		data.weekStart === 'monday' ? WEEKDAYS_MON : ['Sun', ...WEEKDAYS_MON.slice(0, 6)]
+		Array.from({ length: 7 }, (_, i) => WEEKDAYS_MON[(data.weekStartIndex + i) % 7])
 	);
 
 	// 0 = Monday … 6 = Sunday for the 1st of the month (Zeller-free via Date.UTC).
 	const firstWeekday = $derived((new Date(Date.UTC(data.year, data.month - 1, 1)).getUTCDay() + 6) % 7);
-	const leadingBlanks = $derived(
-		data.weekStart === 'monday' ? firstWeekday : (firstWeekday + 1) % 7
-	);
+	const leadingBlanks = $derived((firstWeekday - data.weekStartIndex + 7) % 7);
 
 	function dateOf(day: number): string {
 		return `${data.monthParam}-${String(day).padStart(2, '0')}`;

@@ -1,5 +1,5 @@
 import { requireUser } from '$lib/server/auth';
-import { startOfWeek, todayLocal } from '$lib/server/dates';
+import { startOfWeek, todayLocal, weekdayIndex } from '$lib/server/dates';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { getSettingOr, WEEK_START_KEY } from '$lib/server/settings';
@@ -10,8 +10,7 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = ({ locals }) => {
 	requireUser(locals);
 	const today = todayLocal();
-	const weekStart = getSettingOr(db, WEEK_START_KEY) as 'monday' | 'sunday';
-	const weekFrom = startOfWeek(today, weekStart);
+	const weekFrom = startOfWeek(today, weekdayIndex(getSettingOr(db, WEEK_START_KEY)));
 	const monthFrom = `${today.slice(0, 7)}-01`;
 
 	const people = db

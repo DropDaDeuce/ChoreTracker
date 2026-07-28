@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import WeekCard from '$lib/components/WeekCard.svelte';
 	import { formatCents } from '$lib/money';
 	import { submit } from '$lib/submit';
 
@@ -142,6 +143,47 @@
 				</details>
 			{/if}
 
+			{#if person.week}
+				<div class="mt-4">
+					<WeekCard week={person.week} currency={data.currency} settled={person.weekSettled} />
+				</div>
+				{#if data.canSettle && !person.weekSettled && person.week.totalCents > 0}
+					<form method="POST" action="?/settle" use:enhance={submit()} class="mt-2">
+						<input type="hidden" name="kidId" value={person.id} />
+						<button class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white">
+							Close & pay this week
+						</button>
+						<span class="ml-2 text-xs text-slate-400">
+							Otherwise it pays itself out automatically.
+						</span>
+					</form>
+				{/if}
+			{/if}
+
+			{#if person.pastWeeks.length > 0}
+				<h3 class="mt-5 mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+					Past weeks
+				</h3>
+				<ul class="divide-y divide-slate-100 text-sm">
+					{#each person.pastWeeks as past (past.id)}
+						<li class="flex items-center gap-2 py-2">
+							<span class="flex-1 text-slate-700">
+								Week of {past.weekStart}
+								<span class="text-xs text-slate-400">
+									· {past.daysWorked} of {past.fullWeekDays} days
+								</span>
+							</span>
+							<span class="text-xs text-slate-400">
+								{Math.round(past.earnedBasisPoints / 100)}%
+							</span>
+							<span class="font-semibold text-emerald-700">
+								{formatCents(past.cents, data.currency)}
+							</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+
 			{#if person.recentChores.length > 0}
 				<h3 class="mt-5 mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
 					Recent chores
@@ -153,11 +195,18 @@
 							{#if item.reminderCount > 0}
 								<span class="text-xs text-amber-600">🔔 {item.reminderCount}</span>
 							{/if}
-							<span
-								class="font-semibold {item.payoutCents === 0 ? 'text-slate-400' : 'text-emerald-700'}"
-							>
-								{formatCents(item.payoutCents ?? 0, data.currency)}
-							</span>
+							{#if item.payoutCents === null}
+								<!-- Its share of the week is only fixed once the week is paid. -->
+								<span class="text-xs text-slate-400">this week</span>
+							{:else}
+								<span
+									class="font-semibold {item.payoutCents === 0
+										? 'text-slate-400'
+										: 'text-emerald-700'}"
+								>
+									{formatCents(item.payoutCents, data.currency)}
+								</span>
+							{/if}
 						</li>
 					{/each}
 				</ul>

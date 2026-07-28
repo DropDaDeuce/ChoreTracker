@@ -27,9 +27,73 @@
 			<label class="block">
 				<span class="mb-1 block text-sm font-medium text-slate-700">Week starts on</span>
 				<select name="weekStart" class="w-full rounded-lg border border-slate-300 px-3 py-2">
-					<option value="monday" selected={data.settings.weekStart === 'monday'}>Monday</option>
-					<option value="sunday" selected={data.settings.weekStart === 'sunday'}>Sunday</option>
+					{#each data.weekdays as day (day)}
+						<option value={day} selected={data.settings.weekStart === day}>
+							{day.slice(0, 1).toUpperCase() + day.slice(1)}
+						</option>
+					{/each}
 				</select>
+				<span class="mt-1 block text-xs text-slate-400">
+					Drives the calendar and the allowance week.
+				</span>
+			</label>
+		</div>
+
+		<div class="rounded-xl bg-emerald-50 p-4">
+			<p class="text-sm font-semibold text-emerald-900">Weekly allowance</p>
+			<p class="mt-1 text-xs text-emerald-800">
+				One pot per person, per week. Everyone can earn the same amount — what changes it is
+				how many days they were here to work. Set it to 0 to turn money off entirely.
+			</p>
+
+			<div class="mt-3 grid gap-4 sm:grid-cols-2">
+				<label class="block">
+					<span class="mb-1 block text-sm font-medium text-slate-700">
+						Allowance per week ({data.settings.currencySymbol})
+					</span>
+					<input
+						name="weeklyAllowance"
+						type="number"
+						min="0"
+						max="10000"
+						step="0.01"
+						value={data.settings.weeklyAllowance}
+						class="w-full rounded-lg border border-slate-300 px-3 py-2"
+					/>
+				</label>
+				<label class="block">
+					<span class="mb-1 block text-sm font-medium text-slate-700">Days in a full week</span>
+					<select name="fullWeekDays" class="w-full rounded-lg border border-slate-300 px-3 py-2">
+						<option value="0" selected={data.settings.fullWeekDays === 0}>
+							Auto — busiest person's days
+						</option>
+						{#each [1, 2, 3, 4, 5, 6, 7] as n (n)}
+							<option value={n} selected={data.settings.fullWeekDays === n}>{n} days</option>
+						{/each}
+					</select>
+					<span class="mt-1 block text-xs text-slate-400">
+						Auto works for most families. Pin it if one person's chore load would
+						otherwise set an unfair bar for everyone else.
+					</span>
+				</label>
+			</div>
+
+			<label class="mt-3 block">
+				<span class="mb-1 block text-sm font-medium text-slate-700">
+					Days to wait before paying a finished week
+				</span>
+				<input
+					name="settlementGraceDays"
+					type="number"
+					min="0"
+					max="6"
+					value={data.settings.settlementGraceDays}
+					class="w-full rounded-lg border border-slate-300 px-3 py-2 sm:w-32"
+				/>
+				<span class="mt-1 block text-xs text-slate-400">
+					Breathing room to clear the verify queue. Once a week is paid it's final —
+					anything verified later needs a bonus instead.
+				</span>
 			</label>
 		</div>
 

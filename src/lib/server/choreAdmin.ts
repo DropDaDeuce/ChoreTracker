@@ -19,7 +19,7 @@ export function choreColumnsFromInput(input: ChoreInput) {
 		monthOfYear: input.monthOfYear ?? null,
 		startDate: input.startDate,
 		points: input.points,
-		allowanceCents: Math.round(input.allowance * 100),
+		isBonus: input.isBonus,
 		requiresVerification: input.requiresVerification,
 		requiresPhoto: input.requiresPhoto,
 		graceDays: input.graceDays,

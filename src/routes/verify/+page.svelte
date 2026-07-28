@@ -53,12 +53,16 @@
 											🔔 {instance.reminderCount} reminder{instance.reminderCount > 1 ? 's' : ''}
 										</span>
 									{/if}
-									{#if chore.allowanceCents > 0}
-										<span class="font-semibold {payoutPreview < chore.allowanceCents ? 'text-amber-600' : 'text-emerald-700'}">
-											pays {formatCents(payoutPreview, data.currency)}
-											{#if payoutPreview < chore.allowanceCents}
-												(of {formatCents(chore.allowanceCents, data.currency)})
-											{/if}
+									{#if chore.points > 0}
+										<span>⭐ {chore.points}</span>
+									{/if}
+									{#if payoutPreview > 0}
+										<span
+											class="font-semibold {instance.reminderCount > 0
+												? 'text-amber-600'
+												: 'text-emerald-700'}"
+										>
+											worth {formatCents(payoutPreview, data.currency)} this week
 										</span>
 									{/if}
 								</p>

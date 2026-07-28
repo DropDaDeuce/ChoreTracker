@@ -206,10 +206,10 @@
 									{#if chore.assigneeNames.length > 0}
 										<span>👤 {chore.assigneeNames.join(' → ')}</span>
 									{/if}
-									{#if chore.allowanceCents > 0}
-										<span>💰 {formatCents(chore.allowanceCents, data.currency)}</span>
-									{/if}
 									{#if chore.points > 0}<span>⭐ {chore.points}</span>{/if}
+									{#if chore.isBonus}
+										<span class="font-semibold text-violet-600">🎁 bonus</span>
+									{/if}
 									{#if !chore.requiresVerification}<span>auto-approves</span>{/if}
 								</p>
 							</a>

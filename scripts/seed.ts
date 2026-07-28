@@ -12,6 +12,8 @@ import { runMigrations } from '../src/lib/server/db/migrate';
 import { choreAssignees, chores, rooms, users } from '../src/lib/server/db/schema';
 import { todayLocal } from '../src/lib/server/dates';
 import { generateDueInstances } from '../src/lib/server/generate';
+import { createGoal } from '../src/lib/server/goals';
+import { setSetting, WEEKLY_ALLOWANCE_CENTS_KEY } from '../src/lib/server/settings';
 
 async function main() {
 	runMigrations();
@@ -69,8 +71,7 @@ async function main() {
 				icon: '🍽️',
 				roomId: roomIds['Kitchen'],
 				frequency: 'daily',
-				allowanceCents: 50,
-				points: 5
+				points: 1
 			},
 			assignees: ['Sam']
 		},
@@ -81,8 +82,7 @@ async function main() {
 				roomId: roomIds['Kitchen'],
 				frequency: 'weekly',
 				weekdayMask: (1 << 0) | (1 << 3), // Mon + Thu
-				allowanceCents: 100,
-				points: 10,
+				points: 3,
 				requiresPhoto: true
 			},
 			assignees: ['Riley']
@@ -94,8 +94,7 @@ async function main() {
 				roomId: roomIds['Living room'],
 				frequency: 'weekly',
 				weekdayMask: 1 << 5, // Sat
-				allowanceCents: 150,
-				points: 15,
+				points: 3,
 				assignmentType: 'rotating'
 			},
 			assignees: ['Sam', 'Riley']
@@ -107,6 +106,7 @@ async function main() {
 				roomId: roomIds['Bathroom'],
 				frequency: 'monthly',
 				dayOfMonth: 1,
+				points: 5,
 				requiresVerification: false
 			},
 			assignees: ['Alex']
@@ -117,9 +117,22 @@ async function main() {
 				frequency: 'yearly',
 				monthOfYear: 3,
 				dayOfMonth: 1,
+				points: 7,
 				requiresVerification: false
 			},
 			assignees: ['Alex']
+		},
+		{
+			values: {
+				title: 'Wash the car',
+				icon: '🚗',
+				frequency: 'weekly',
+				weekdayMask: 1 << 6, // Sun
+				points: 5,
+				isBonus: true,
+				assignmentType: 'rotating'
+			},
+			assignees: ['Sam', 'Riley']
 		}
 	];
 
@@ -136,6 +149,16 @@ async function main() {
 		}
 	}
 
+	// Turn the money model on so the demo shows a live allowance week, and
+	// give the family a goal to fill the board's bar.
+	setSetting(db, WEEKLY_ALLOWANCE_CENTS_KEY, '1000');
+	createGoal(db, {
+		scope: 'family',
+		period: 'weekly',
+		targetPoints: 20,
+		rewardNote: 'Movie night 🍿'
+	});
+
 	const created = generateDueInstances(db, today);
 
 	console.log('Seeded demo family 🎉');
@@ -143,6 +166,7 @@ async function main() {
 	console.log('  Sam   (kid)   — PIN 1111');
 	console.log('  Riley (kid)   — PIN 2222');
 	console.log(`  ${demoChores.length} chores, ${created} scheduled instances`);
+	console.log('  Weekly allowance: $10.00 each, week runs Sat–Fri');
 	console.log('Run `npm run dev` and log in from the profile picker.');
 }
 

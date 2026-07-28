@@ -56,10 +56,10 @@
 					<p class="mt-1.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
 						{#if chore.roomLabel}<span class="font-medium text-slate-400">{chore.roomLabel}</span>{/if}
 						<span>{describeRecurrence(chore)}</span>
-						{#if chore.allowanceCents > 0}
-							<span>💰 {formatCents(chore.allowanceCents, data.currency)}</span>
-						{/if}
 						{#if chore.points > 0}<span>⭐ {chore.points}</span>{/if}
+						{#if chore.isBonus}
+							<span class="font-semibold text-violet-600">🎁 bonus</span>
+						{/if}
 					</p>
 					{#if chore.nextDueDate}
 						<p class="mt-2 text-sm">

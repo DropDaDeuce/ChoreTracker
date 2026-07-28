@@ -1,13 +1,23 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import Celebration, { type CelebrationData } from '$lib/components/Celebration.svelte';
+	import GoalCard from '$lib/components/GoalCard.svelte';
 	import NotificationSetup from '$lib/components/NotificationSetup.svelte';
+	import WeekCard from '$lib/components/WeekCard.svelte';
 	import { formatCents } from '$lib/money';
 	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
 
+	type Achievement = { rewardNote: string; targetPoints: number };
+
 	let celebration = $state<CelebrationData | null>(null);
+	let claimForm = $state<HTMLFormElement | null>(null);
+
+	// Check for newly-crossed goals once the page is actually on screen.
+	$effect(() => {
+		if (data.goals.some((g) => g.met && !g.achieved)) claimForm?.requestSubmit();
+	});
 
 	// Which open chore is showing the "who takes it?" swap row.
 	let swappingId = $state<number | null>(null);
@@ -99,6 +109,38 @@
 		<p class="rounded-lg bg-red-50 p-3 text-sm font-medium text-red-700">{form.message}</p>
 	{/if}
 
+	{#if data.week}
+		<WeekCard week={data.week} currency={data.currency} />
+	{/if}
+
+	{#if data.goals.length > 0}
+		<section class="space-y-2">
+			{#each data.goals as goal (goal.id)}
+				<GoalCard {goal} />
+			{/each}
+		</section>
+	{/if}
+
+	<!-- Records goals crossed since the last visit and celebrates them once.
+	     Fires from the client so a speculative link preload can't swallow it. -->
+	<form
+		method="POST"
+		action="?/claimGoals"
+		use:enhance={() =>
+			({ result }: { result: { type: string; data?: { achievements?: Achievement[] } } }) => {
+				const won = result.type === 'success' ? (result.data?.achievements ?? []) : [];
+				if (won.length > 0) {
+					celebration = {
+						emoji: '🏆',
+						title: won.length > 1 ? 'Goals smashed!' : 'Goal smashed!',
+						sub: won[0].rewardNote || `${won[0].targetPoints} ⭐ reached`
+					};
+				}
+			}}
+		bind:this={claimForm}
+		class="hidden"
+	></form>
+
 	{#if data.awayToday}
 		<p class="rounded-2xl bg-sky-50 p-4 text-sm font-medium text-sky-800">
 			✈️ You're marked as away today — no chores are assigned to you.
@@ -129,15 +171,10 @@
 								{:else}
 									<span>Due today</span>
 								{/if}
-								{#if chore.allowanceCents > 0}
-									{#if payoutPreview < chore.allowanceCents}
-										<span class="font-semibold text-amber-600">
-											💰 now pays {formatCents(payoutPreview, data.currency)}
-											<s class="text-slate-400">{formatCents(chore.allowanceCents, data.currency)}</s>
-										</span>
-									{:else}
-										<span>💰 {formatCents(chore.allowanceCents, data.currency)}</span>
-									{/if}
+								{#if payoutPreview > 0}
+									<span class="font-semibold {instance.reminderCount > 0 ? 'text-amber-600' : 'text-emerald-700'}">
+										💰 worth {formatCents(payoutPreview, data.currency)}
+									</span>
 								{/if}
 								{#if chore.points > 0}<span>⭐ {chore.points}</span>{/if}
 								{#if instance.reminderCount > 0}

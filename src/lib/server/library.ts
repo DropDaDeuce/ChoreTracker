@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { templatesFor, type ChoreTemplate } from '$lib/choreLibrary';
+import { DEFAULT_POINTS } from '$lib/points';
 import { todayLocal } from './dates';
 import { chores } from './db/schema';
 import type { DB } from './db/type';
@@ -60,7 +61,7 @@ function templateColumns(template: ChoreTemplate, roomId: number | null, today: 
 				: null,
 		monthOfYear: template.frequency === 'yearly' ? (template.monthOfYear ?? 1) : null,
 		startDate: today,
-		points: template.points,
-		allowanceCents: 0 // money is family policy — set it when you assign
+		// Weight defaults from how often it comes round; adults retune per chore.
+		points: DEFAULT_POINTS[template.frequency]
 	};
 }

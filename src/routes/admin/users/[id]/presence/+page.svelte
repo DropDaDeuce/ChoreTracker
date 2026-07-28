@@ -8,14 +8,12 @@
 
 	const WEEKDAYS_MON = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 	const weekdayLabels = $derived(
-		data.weekStart === 'monday' ? WEEKDAYS_MON : ['Sun', ...WEEKDAYS_MON.slice(0, 6)]
+		Array.from({ length: 7 }, (_, i) => WEEKDAYS_MON[(data.weekStartIndex + i) % 7])
 	);
 	const firstWeekday = $derived(
 		(new Date(Date.UTC(data.year, data.month - 1, 1)).getUTCDay() + 6) % 7
 	);
-	const leadingBlanks = $derived(
-		data.weekStart === 'monday' ? firstWeekday : (firstWeekday + 1) % 7
-	);
+	const leadingBlanks = $derived((firstWeekday - data.weekStartIndex + 7) % 7);
 
 	// Context menu state (right-click on a day)
 	let menu = $state<null | { x: number; y: number; day: (typeof data.days)[number] }>(null);

@@ -87,6 +87,37 @@
 		</div>
 	</div>
 
+	{#if data.familyGoals.length > 0}
+		<div class="grid gap-3 sm:grid-cols-2">
+			{#each data.familyGoals as goal (goal.id)}
+				<div class="rounded-2xl bg-white p-4 shadow-sm">
+					<div class="flex flex-wrap items-baseline justify-between gap-x-3">
+						<p class="font-semibold {goal.met ? 'text-amber-700' : 'text-slate-700'}">
+							{goal.met ? '🏆' : '👨‍👩‍👧'} Family {goal.period} goal
+						</p>
+						<p class="text-lg font-bold {goal.met ? 'text-amber-700' : 'text-slate-600'}">
+							{goal.points} / {goal.targetPoints} ⭐
+						</p>
+					</div>
+					<div class="mt-2 h-4 overflow-hidden rounded-full bg-slate-200">
+						<div
+							class="h-full rounded-full transition-all duration-700 {goal.met
+								? 'bg-amber-400'
+								: 'bg-emerald-500'}"
+							style="width: {goal.percent}%"
+						></div>
+					</div>
+					{#if goal.rewardNote}
+						<p class="mt-2 text-sm {goal.met ? 'font-semibold text-amber-800' : 'text-slate-500'}">
+							{goal.met ? 'Earned:' : 'Reward:'}
+							{goal.rewardNote}
+						</p>
+					{/if}
+				</div>
+			{/each}
+		</div>
+	{/if}
+
 	<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 		{#each data.people as person (person.id)}
 			{@const doneCount = person.awaiting.length + person.completed.length}

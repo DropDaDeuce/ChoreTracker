@@ -22,6 +22,7 @@
 		{ href: '/verify', label: 'Verify', icon: '✅' },
 		{ href: '/admin/chores', label: 'House', icon: '🏡' },
 		{ href: '/admin/users', label: 'People', icon: '👪' },
+		{ href: '/admin/goals', label: 'Goals', icon: '🎯' },
 		{ href: '/admin/settings', label: 'Settings', icon: '⚙️' }
 	];
 

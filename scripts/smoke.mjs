@@ -83,31 +83,35 @@ await post('/dashboard?/markDone', { instanceId }, sam);
 const kidVerify = await get('/verify', sam);
 check('kid blocked from /verify (403)', kidVerify.status === 403);
 
-// 5. Adult reminds once, then verifies -> half payout (50c allowance -> 25c)
+// 5. Adult reminds once, then verifies. Money is a property of the WEEK now:
+// a reminder shrinks this chore's share of its day, it doesn't pay out here.
 const alex = await login('1', '1234');
 let verify = await get('/verify', alex);
 check('verify queue shows the done chore', verify.body.includes('Empty the dishwasher') && verify.body.includes('Sam'));
+const worthBefore = Number(verify.body.match(/worth \$(\d+\.\d\d) this week/)?.[1] ?? 0);
+check('verify queue prices the chore from the week', worthBefore > 0);
 const remind = await post('/verify?/remind', { instanceId }, alex);
 check('adult adds a reminder', remind.status === 200);
 verify = await get('/verify', alex);
-check('payout preview shows half ($0.25 of $0.50)', verify.body.includes('$0.25'));
+const worthAfter = Number(verify.body.match(/worth \$(\d+\.\d\d) this week/)?.[1] ?? 0);
+check('a reminder halves what the chore is worth', Math.abs(worthAfter - worthBefore / 2) < 0.02);
 const verified = await post('/verify?/verify', { instanceId }, alex);
 check('adult verifies chore', verified.status === 200);
 
-// 6. Earnings: Sam has $0.25, reminder reason recorded; adult pays out
+// 6. Earnings shows the live week; the bank balance is still zero because the
+// week hasn't been settled yet.
 let earnings = await get('/earnings', alex);
-check('kid balance is $0.25 after reduced payout', earnings.body.includes('$0.25'));
-check('ledger records the reminder reason', earnings.body.includes('1 reminder'));
-const kidId = earnings.body.match(/\?\/payout"[\s\S]*?name="kidId" value="(\d+)"/)?.[1];
-check('payout button targets the kid', Boolean(kidId));
-const paid = await post('/earnings?/payout', { kidId }, alex);
-check('adult pays out balance', paid.status === 200);
-earnings = await get('/earnings', alex);
-check('balance zero after payout, history kept', earnings.body.includes('$0.00') && earnings.body.includes('Paid out'));
+check('earnings shows the live allowance week', earnings.body.includes('This week'));
+check('earnings shows banked-so-far', earnings.body.includes('Banked'));
+check('nothing is banked until the week settles', earnings.body.includes('Nothing earned yet'));
+const kidId = earnings.body.match(/name="kidId" value="(\d+)"/)?.[1];
+check('earnings identifies the kid', Boolean(kidId));
 
-// 7. Kid earnings view works
+// 7. Kid earnings view works and is scoped to them alone
 const kidEarnings = await get('/earnings', sam);
-check('kid sees own earnings page', kidEarnings.status === 200 && kidEarnings.body.includes('Paid out'));
+check('kid sees own earnings page', kidEarnings.status === 200 && kidEarnings.body.includes('This week'));
+check('kid does NOT see the other kid on their earnings page', !kidEarnings.body.includes('Riley'));
+check('kid sees no payout controls', !kidEarnings.body.includes('?/payout'));
 
 // 8. Admin pages render for adult
 const adminChores = await get('/admin/chores', alex);
@@ -161,7 +165,6 @@ const createRes = await post(
 		interval: '1',
 		startDate: today,
 		points: '2',
-		allowance: '0.10',
 		graceDays: '0',
 		requiresVerification: 'on',
 		assignmentType: 'fixed',
@@ -183,7 +186,6 @@ const rotRes = await post(
 		interval: '1',
 		startDate: today,
 		points: '0',
-		allowance: '0.20',
 		graceDays: '1',
 		requiresVerification: 'on',
 		assignmentType: 'rotating',
@@ -220,19 +222,26 @@ const kidSettings = await get('/admin/settings', sam);
 check('kid blocked from settings (403)', kidSettings.status === 403);
 let settingsPage = await get('/admin/settings', alex);
 check('settings page renders', settingsPage.status === 200 && settingsPage.body.includes('Reminder penalty'));
+check('settings offers the weekly allowance', settingsPage.body.includes('Allowance per week'));
+check('week can start on any day', settingsPage.body.includes('value="saturday"') && settingsPage.body.includes('value="wednesday"'));
+const settingsBase = {
+	reminderPenaltyPercent: '50',
+	undoWindowMinutes: '15',
+	weekStart: 'saturday',
+	backupKeepCount: '14',
+	weeklyAllowance: '10.00',
+	fullWeekDays: '0',
+	settlementGraceDays: '1'
+};
 const saveSettings = await post(
 	'/admin/settings',
-	{ currencySymbol: '€', reminderPenaltyPercent: '50', undoWindowMinutes: '15', weekStart: 'monday', backupKeepCount: '14' },
+	{ ...settingsBase, currencySymbol: '€' },
 	alex
 );
 check('settings save succeeds', saveSettings.status === 200);
 const dashEuro = await get('/dashboard', alex);
 check('currency symbol threads through UI', dashEuro.body.includes('€'));
-await post(
-	'/admin/settings',
-	{ currencySymbol: '$', reminderPenaltyPercent: '50', undoWindowMinutes: '15', weekStart: 'monday', backupKeepCount: '14' },
-	alex
-);
+await post('/admin/settings', { ...settingsBase, currencySymbol: '$' }, alex);
 
 // Phase 3: photo proof end-to-end
 const photoChore = await post(
@@ -243,7 +252,6 @@ const photoChore = await post(
 		interval: '1',
 		startDate: today,
 		points: '3',
-		allowance: '0',
 		graceDays: '0',
 		requiresVerification: 'on',
 		requiresPhoto: 'on',
@@ -336,6 +344,59 @@ earnings = await get('/earnings', alex);
 check('balance reflects bonus minus penalty ($0.75)', earnings.body.includes('$0.75') && earnings.body.includes('Car wash help') && earnings.body.includes('Muddy shoes'));
 const badAdjust = await post('/earnings?/adjust', { kidId: '2', type: 'bonus', amount: '0', note: '' }, alex);
 check('zero-amount adjustment rejected', badAdjust.status === 400);
+
+// Weekly allowance: the live week, bonus points, and privacy between kids
+const samDashWeek = await get('/dashboard', sam);
+check('kid dashboard shows their allowance week', samDashWeek.body.includes('This week'));
+check('week card explains the chore-day count', samDashWeek.body.includes('chore days this week'));
+check('the divisor is never attributed to a person', !/chore days this week[\s\S]{0,120}(set by|Riley)/.test(samDashWeek.body));
+
+// Exactly one week card: their own. (Sam's NAME legitimately appears here —
+// he's a swap target — but none of his money may.)
+const rileyDashWeek = await get('/dashboard', riley);
+check(
+	"kid dashboard shows one week card, and it's their own",
+	(rileyDashWeek.body.match(/chore days this week/g) ?? []).length === 1
+);
+check(
+	'kid dashboard carries at most their own banked figure',
+	(rileyDashWeek.body.match(/Banked/g) ?? []).length <= 1
+);
+
+// Adult grants bonus points on a specific chore, from the verify queue
+const openForBonus = await get('/verify', alex);
+const bonusTarget = openForBonus.body.match(/name="instanceId" value="(\d+)"/)?.[1];
+const grantBonus = await post('/verify?/bonus', { instanceId: bonusTarget, points: '5' }, alex);
+check('adult grants bonus points on a chore', grantBonus.status === 200);
+const badBonus = await post('/verify?/bonus', { instanceId: bonusTarget, points: '-3' }, alex);
+check('negative bonus points rejected', badBonus.status === 400);
+
+// Point goals
+const kidGoals = await get('/admin/goals', sam);
+check('kid blocked from goals admin (403)', kidGoals.status === 403);
+const goalCreate = await post(
+	'/admin/goals?/create',
+	{ scope: 'family', period: 'weekly', targetPoints: '15', rewardNote: 'Pizza night' },
+	alex
+);
+check('adult creates a family goal', goalCreate.status === 200);
+const goalsPage = await get('/admin/goals', alex);
+check('goal appears with its reward', goalsPage.body.includes('Pizza night') && goalsPage.body.includes('15'));
+const kidSeesGoal = await get('/dashboard', sam);
+check('family goal reaches the kid dashboard', kidSeesGoal.body.includes('Pizza night'));
+const boardGoal = await get('/board', sam);
+check('family goal shows on the board', boardGoal.body.includes('Pizza night'));
+check('board still shows no money', !boardGoal.body.includes('Banked'));
+const personalGoal = await post(
+	'/admin/goals?/create',
+	{ scope: 'user', userId: '2', period: 'daily', targetPoints: '3', rewardNote: 'Extra story' },
+	alex
+);
+check('adult creates a personal goal', personalGoal.status === 200);
+const rileySeesNoSamGoal = await get('/dashboard', riley);
+check("a kid cannot see another kid's personal goal", !rileySeesNoSamGoal.body.includes('Extra story'));
+const badGoal = await post('/admin/goals?/create', { scope: 'family', period: 'weekly', targetPoints: '0' }, alex);
+check('zero-target goal rejected', badGoal.status === 400);
 
 // Phase 4: push subscription endpoints
 const fakeSub = { endpoint: 'https://push.example.com/sub/abc123', keys: { p256dh: 'test-p256dh-key', auth: 'test-auth' } };

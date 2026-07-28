@@ -67,8 +67,17 @@ export const chores = sqliteTable('chores', {
 	monthOfYear: integer('month_of_year'),
 	/** Anchor for interval math and earliest possible occurrence (YYYY-MM-DD). */
 	startDate: text('start_date').notNull(),
+	/**
+	 * The chore's weight. Points decide two things: how much of a day's
+	 * allowance value this chore claims, and progress toward point goals.
+	 * Defaults follow frequency (daily 1, weekly 3, monthly 5, yearly 7).
+	 */
 	points: integer('points').notNull().default(0),
-	allowanceCents: integer('allowance_cents').notNull().default(0),
+	/**
+	 * Extra credit. Bonus chores are excluded from the week's denominator
+	 * entirely — doing one adds money, skipping one costs nothing.
+	 */
+	isBonus: integer('is_bonus', { mode: 'boolean' }).notNull().default(false),
 	assignmentType: text('assignment_type', { enum: ['fixed', 'rotating'] })
 		.notNull()
 		.default('fixed'),
@@ -120,13 +129,33 @@ export const choreInstances = sqliteTable(
 		})
 			.notNull()
 			.default('pending'),
+		/**
+		 * The chore's points, copied here when the instance is created and
+		 * never rewritten. The allowance divides a day's value by weight, so
+		 * an adult retuning a chore mid-week must not move the denominator
+		 * under a week already in progress.
+		 */
+		weight: integer('weight').notNull().default(1),
+		/** Frozen with the weight — a bonus instance never enters a denominator. */
+		isBonus: integer('is_bonus', { mode: 'boolean' }).notNull().default(false),
+		/**
+		 * Extra points an adult granted on this specific occurrence ("you went
+		 * above and beyond"). Paid at the week's bonus rate alongside bonus
+		 * chores; never enters the denominator.
+		 */
+		bonusPoints: integer('bonus_points').notNull().default(0),
 		reminderCount: integer('reminder_count').notNull().default(0),
 		doneAt: integer('done_at', { mode: 'timestamp_ms' }),
 		doneBy: integer('done_by').references(() => users.id),
 		verifiedAt: integer('verified_at', { mode: 'timestamp_ms' }),
 		verifiedBy: integer('verified_by').references(() => users.id),
 		photoPath: text('photo_path'),
-		/** Frozen at verification so later config changes never rewrite history. */
+		/**
+		 * What this instance actually paid. Under the weekly-allowance model
+		 * the number is only known when the week settles, so it is stamped
+		 * then (and stays null on an unsettled week). Bonus instances are the
+		 * exception — they pay on verification, independent of the week.
+		 */
 		payoutCents: integer('payout_cents'),
 		/** Frozen at verification, like payoutCents. */
 		pointsAwarded: integer('points_awarded'),
@@ -258,6 +287,73 @@ export const presenceDays = sqliteTable(
 		isHome: integer('is_home', { mode: 'boolean' }).notNull()
 	},
 	(t) => [uniqueIndex('presence_days_user_date_unique').on(t.userId, t.date)]
+);
+
+/**
+ * One closed allowance week per person: the record that a week was paid, and
+ * the guard that stops the nightly cron paying it twice. Also the history
+ * behind "past weeks" on the earnings page.
+ */
+export const weeklySettlements = sqliteTable(
+	'weekly_settlements',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		/** YYYY-MM-DD of the week's first day. */
+		weekStart: text('week_start').notNull(),
+		/** Days this person actually had chores on. */
+		daysWorked: integer('days_worked').notNull(),
+		/** The divisor used — kept so a past week can be explained after the fact. */
+		fullWeekDays: integer('full_week_days').notNull(),
+		/** Weight completed / weight assigned, as basis points (10000 = 100%). */
+		earnedBasisPoints: integer('earned_basis_points').notNull(),
+		/** What was paid, in cents. */
+		cents: integer('cents').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(t) => [uniqueIndex('weekly_settlements_user_week_unique').on(t.userId, t.weekStart)]
+);
+
+/**
+ * A point target set by an adult, for one kid or for the whole family.
+ * Goals are pure carrot: hitting one is a celebration and a promised reward,
+ * never money (money is the allowance's job).
+ */
+export const goals = sqliteTable('goals', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	scope: text('scope', { enum: ['user', 'family'] }).notNull(),
+	/** Null for family goals. */
+	userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+	period: text('period', { enum: ['daily', 'weekly'] }).notNull(),
+	targetPoints: integer('target_points').notNull(),
+	/** What they get for hitting it — "movie night". Free text, no money. */
+	rewardNote: text('reward_note').notNull().default(''),
+	isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
+/** One row the first time a goal is met in a given period — so the celebration fires once. */
+export const goalAchievements = sqliteTable(
+	'goal_achievements',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		goalId: integer('goal_id')
+			.notNull()
+			.references(() => goals.id, { onDelete: 'cascade' }),
+		/** YYYY-MM-DD: the day (daily) or week start (weekly) it was hit in. */
+		periodStart: text('period_start').notNull(),
+		pointsAtAchievement: integer('points_at_achievement').notNull(),
+		achievedAt: integer('achieved_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(t) => [uniqueIndex('goal_achievements_goal_period_unique').on(t.goalId, t.periodStart)]
 );
 
 /** Simple key/value store for app-wide settings (currency symbol, week start, ...). */

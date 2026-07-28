@@ -1,32 +1,34 @@
-import { computePayoutCents } from '$lib/server/payout';
+import { instanceWeight, reminderFactor } from '$lib/server/payout';
 import { describe, expect, it } from 'vitest';
 
-describe('computePayoutCents', () => {
-	it('pays in full with no reminders', () => {
-		expect(computePayoutCents(200, 0)).toBe(200);
+describe('reminderFactor', () => {
+	it('claims the full weight with no reminders', () => {
+		expect(reminderFactor(0)).toBe(1);
 	});
 
-	it('pays half after one reminder (default penalty)', () => {
-		expect(computePayoutCents(200, 1)).toBe(100);
+	it('halves after one reminder (default penalty)', () => {
+		expect(reminderFactor(1)).toBe(0.5);
 	});
 
-	it('pays nothing after two or more reminders', () => {
-		expect(computePayoutCents(200, 2)).toBe(0);
-		expect(computePayoutCents(200, 5)).toBe(0);
+	it('claims nothing after two or more reminders', () => {
+		expect(reminderFactor(2)).toBe(0);
+		expect(reminderFactor(5)).toBe(0);
 	});
 
 	it('honors a configured penalty percentage', () => {
-		expect(computePayoutCents(200, 1, 25)).toBe(150);
-		expect(computePayoutCents(200, 1, 100)).toBe(0);
-		expect(computePayoutCents(200, 1, 0)).toBe(200);
+		expect(reminderFactor(1, 25)).toBe(0.75);
+		expect(reminderFactor(1, 100)).toBe(0);
+		expect(reminderFactor(1, 0)).toBe(1);
+	});
+});
+
+describe('instanceWeight', () => {
+	it('uses the chore points', () => {
+		expect(instanceWeight(3)).toBe(3);
 	});
 
-	it('rounds to whole cents', () => {
-		expect(computePayoutCents(105, 1)).toBe(53); // 52.5 rounds up
-	});
-
-	it('handles zero-allowance chores', () => {
-		expect(computePayoutCents(0, 0)).toBe(0);
-		expect(computePayoutCents(0, 1)).toBe(0);
+	it('floors at 1 so a points-free household still splits days evenly', () => {
+		expect(instanceWeight(0)).toBe(1);
+		expect(instanceWeight(-5)).toBe(1);
 	});
 });

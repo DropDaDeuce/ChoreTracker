@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { MONTH_LABELS, WEEKDAY_LABELS } from '$lib/choreText';
 	import IconPicker from '$lib/components/IconPicker.svelte';
+	import { DEFAULT_POINTS } from '$lib/points';
 	import { submit } from '$lib/submit';
 
 	const CHORE_ICONS = [
@@ -33,7 +34,7 @@
 		monthOfYear: number | null;
 		startDate: string;
 		points: number;
-		allowanceDollars: number;
+		isBonus: boolean;
 		requiresVerification: boolean;
 		requiresPhoto: boolean;
 		graceDays: number;
@@ -70,8 +71,14 @@
 	let pool = $state<number[]>([...initial.assigneeIds]);
 	// svelte-ignore state_referenced_locally
 	let fixedId = $state<number | null>(initial.assigneeIds[0] ?? null);
+	// svelte-ignore state_referenced_locally
+	let points = $state(initial.points);
 
 	let addId = $state<number | ''>('');
+
+	// Bigger jobs come round less often, so frequency is a decent first guess
+	// at a chore's weight. Only ever a suggestion — one tap to accept.
+	const suggestedPoints = $derived(DEFAULT_POINTS[frequency]);
 
 	const available = $derived(people.filter((p) => !pool.includes(p.id)));
 
@@ -241,29 +248,37 @@
 		</label>
 	</div>
 
-	<div class="grid gap-4 sm:grid-cols-2">
+	<div class="rounded-xl bg-slate-50 p-4">
 		<label class="block">
-			<span class="mb-1 block text-sm font-medium text-slate-700">Allowance ({currency})</span>
-			<input
-				name="allowance"
-				type="number"
-				min="0"
-				max="1000"
-				step="0.01"
-				value={initial.allowanceDollars}
-				class="w-full rounded-lg border border-slate-300 px-3 py-2"
-			/>
-		</label>
-		<label class="block">
-			<span class="mb-1 block text-sm font-medium text-slate-700">Points</span>
+			<span class="mb-1 block text-sm font-medium text-slate-700">Points ⭐</span>
 			<input
 				name="points"
 				type="number"
 				min="0"
 				max="1000"
-				value={initial.points}
-				class="w-full rounded-lg border border-slate-300 px-3 py-2"
+				bind:value={points}
+				class="w-full rounded-lg border border-slate-300 px-3 py-2 sm:w-40"
 			/>
+		</label>
+		<p class="mt-2 text-xs text-slate-500">
+			Points are the chore's weight. A day's share of the weekly allowance splits between
+			that day's chores by points, and point goals count them.
+			{#if points !== suggestedPoints}
+				<button
+					type="button"
+					class="font-semibold text-slate-700 underline"
+					onclick={() => (points = suggestedPoints)}
+				>
+					Use {suggestedPoints} (usual for {frequency})
+				</button>
+			{/if}
+		</p>
+
+		<label class="mt-3 flex items-center gap-2">
+			<input type="checkbox" name="isBonus" checked={initial.isBonus} class="h-4 w-4" />
+			<span class="text-sm text-slate-700">
+				🎁 Bonus chore — earns extra on top, and never counts against them
+			</span>
 		</label>
 	</div>
 

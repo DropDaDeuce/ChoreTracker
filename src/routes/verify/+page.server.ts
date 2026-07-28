@@ -4,19 +4,16 @@ import { db } from '$lib/server/db';
 import { choreInstances, chores, users } from '$lib/server/db/schema';
 import {
 	addReminder,
+	grantBonusPoints,
 	InstanceActionError,
 	rejectInstance,
 	verifyInstance
 } from '$lib/server/instances';
 import { formatCents } from '$lib/money';
-import { computePayoutCents } from '$lib/server/payout';
+import { allowanceConfig, instanceValues } from '$lib/server/allowance';
+import { startOfWeek } from '$lib/server/dates';
 import { notifyUser } from '$lib/server/push';
-import {
-	CURRENCY_SYMBOL_KEY,
-	getSettingInt,
-	getSettingOr,
-	REMINDER_PENALTY_PERCENT_KEY
-} from '$lib/server/settings';
+import { CURRENCY_SYMBOL_KEY, getSettingOr } from '$lib/server/settings';
 import { deletePhoto } from '$lib/server/uploads';
 import { fail } from '@sveltejs/kit';
 import { and, asc, eq, lte } from 'drizzle-orm';
@@ -25,7 +22,8 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = ({ locals }) => {
 	requireAdult(locals);
 	const today = todayLocal();
-	const penaltyPercent = getSettingInt(db, REMINDER_PENALTY_PERCENT_KEY, 50);
+	const config = allowanceConfig(db);
+	const penaltyPercent = config.penaltyPercent;
 
 	const select = () =>
 		db
@@ -34,29 +32,35 @@ export const load: PageServerLoad = ({ locals }) => {
 			.innerJoin(chores, eq(choreInstances.choreId, chores.id))
 			.innerJoin(users, eq(choreInstances.assigneeId, users.id));
 
-	const withPreview = (rows: ReturnType<ReturnType<typeof select>['all']>) =>
-		rows.map((row) => ({
-			...row,
-			payoutPreview: computePayoutCents(
-				row.chore.allowanceCents,
-				row.instance.reminderCount,
-				penaltyPercent
-			)
-		}));
-
-	const queue = withPreview(
-		select().where(eq(choreInstances.status, 'done')).orderBy(asc(choreInstances.doneAt)).all()
-	);
+	const queue = select()
+		.where(eq(choreInstances.status, 'done'))
+		.orderBy(asc(choreInstances.doneAt))
+		.all();
 
 	// Open chores due today or overdue — where "+1 reminder" usually happens.
-	const stillOpen = withPreview(
-		select()
-			.where(and(eq(choreInstances.status, 'pending'), lte(choreInstances.dueDate, today)))
-			.orderBy(asc(choreInstances.dueDate))
-			.all()
-	);
+	const stillOpen = select()
+		.where(and(eq(choreInstances.status, 'pending'), lte(choreInstances.dueDate, today)))
+		.orderBy(asc(choreInstances.dueDate))
+		.all();
 
-	return { today, queue, stillOpen, penaltyPercent };
+	// A chore's worth is a slice of its own week, and the queue can hold
+	// leftovers from last week — so price every week the queue touches.
+	const values = instanceValues(
+		db,
+		[...queue, ...stillOpen].map((row) =>
+			startOfWeek(row.instance.dueDate, config.weekStartIndex)
+		),
+		config
+	);
+	const withPreview = (rows: typeof queue) =>
+		rows.map((row) => ({ ...row, payoutPreview: values.get(row.instance.id) ?? 0 }));
+
+	return {
+		today,
+		queue: withPreview(queue),
+		stillOpen: withPreview(stillOpen),
+		penaltyPercent
+	};
 };
 
 function instanceAction(fn: (instanceId: number, adultId: number) => void): NonNullable<Actions[string]> {
@@ -89,14 +93,37 @@ export const actions: Actions = {
 		const ctx = instanceContext(id);
 		if (ctx) {
 			const currency = getSettingOr(db, CURRENCY_SYMBOL_KEY);
-			const payout = ctx.instance.payoutCents ?? 0;
+			const config = allowanceConfig(db);
+			const worth = instanceValues(
+				db,
+				[startOfWeek(ctx.instance.dueDate, config.weekStartIndex)],
+				config
+			).get(id);
 			notifyUser(db, ctx.instance.assigneeId, {
 				title: `✅ ${ctx.chore.title} verified!`,
-				body: payout > 0 ? `You earned ${formatCents(payout, currency)}.` : 'Nice work!',
+				body:
+					worth && worth > 0
+						? `That's ${formatCents(worth, currency)} toward this week.`
+						: 'Nice work!',
 				url: '/earnings'
 			});
 		}
 	}),
+	/** "That was above and beyond" — extra points on this one occurrence. */
+	bonus: async ({ request, locals }) => {
+		requireAdult(locals);
+		const form = await request.formData();
+		const instanceId = Number(form.get('instanceId'));
+		const points = Number(form.get('points'));
+		try {
+			grantBonusPoints(db, instanceId, points);
+		} catch (err) {
+			if (err instanceof InstanceActionError) return fail(400, { message: err.message });
+			throw err;
+		}
+		return { success: true };
+	},
+
 	reject: async ({ request, locals }) => {
 		const adult = requireAdult(locals);
 		const form = await request.formData();
@@ -126,19 +153,21 @@ export const actions: Actions = {
 		const ctx = instanceContext(id);
 		if (ctx) {
 			const currency = getSettingOr(db, CURRENCY_SYMBOL_KEY);
-			const penalty = getSettingInt(db, REMINDER_PENALTY_PERCENT_KEY, 50);
-			const payout = computePayoutCents(
-				ctx.chore.allowanceCents,
-				ctx.instance.reminderCount,
-				penalty
-			);
+			const config = allowanceConfig(db);
+			// Priced AFTER the reminder landed, so the number they see is what
+			// the chore is now actually worth.
+			const worth = instanceValues(
+				db,
+				[startOfWeek(ctx.instance.dueDate, config.weekStartIndex)],
+				config
+			).get(id);
 			notifyUser(db, ctx.instance.assigneeId, {
 				title: `🔔 Reminder: ${ctx.chore.title}`,
 				body:
-					ctx.chore.allowanceCents > 0
-						? payout > 0
-							? `Payout is down to ${formatCents(payout, currency)} — go do it!`
-							: 'No payout left for this one — do it anyway!'
+					config.allowanceCents > 0
+						? worth && worth > 0
+							? `It's down to ${formatCents(worth, currency)} — go do it!`
+							: "There's no allowance left on this one — do it anyway!"
 						: 'Time to get it done!',
 				url: '/dashboard'
 			});

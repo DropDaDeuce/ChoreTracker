@@ -1,5 +1,5 @@
 import { requireUser } from '$lib/server/auth';
-import { daysInMonth, todayLocal } from '$lib/server/dates';
+import { daysInMonth, todayLocal, weekdayIndex } from '$lib/server/dates';
 import { db } from '$lib/server/db';
 import { choreAssignees, choreInstances, chores, users } from '$lib/server/db/schema';
 import { isHome } from '$lib/server/presence';
@@ -108,7 +108,7 @@ export const load: PageServerLoad = ({ locals, url }) => {
 		month,
 		daysInMonth: daysInMonth(year, month),
 		entries: Object.fromEntries(entries),
-		weekStart: getSettingOr(db, WEEK_START_KEY) as 'monday' | 'sunday',
+		weekStartIndex: weekdayIndex(getSettingOr(db, WEEK_START_KEY)),
 		today,
 		prev,
 		next,

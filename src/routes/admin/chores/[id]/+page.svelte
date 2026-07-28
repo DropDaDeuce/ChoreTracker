@@ -58,7 +58,7 @@
 			monthOfYear: data.chore.monthOfYear,
 			startDate: data.chore.startDate,
 			points: data.chore.points,
-			allowanceDollars: data.chore.allowanceCents / 100,
+			isBonus: data.chore.isBonus,
 			requiresVerification: data.chore.requiresVerification,
 			requiresPhoto: data.chore.requiresPhoto,
 			graceDays: data.chore.graceDays,

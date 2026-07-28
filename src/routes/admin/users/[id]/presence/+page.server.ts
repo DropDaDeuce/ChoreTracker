@@ -1,5 +1,5 @@
 import { requireAdult } from '$lib/server/auth';
-import { daysInMonth, isDateString, todayLocal } from '$lib/server/dates';
+import { daysInMonth, isDateString, todayLocal, weekdayIndex } from '$lib/server/dates';
 import { db } from '$lib/server/db';
 import { presenceDays, presenceRules, users } from '$lib/server/db/schema';
 import { isHome } from '$lib/server/presence';
@@ -69,7 +69,7 @@ export const load: PageServerLoad = ({ locals, params, url }) => {
 		prev,
 		next,
 		today,
-		weekStart: getSettingOr(db, WEEK_START_KEY) as 'monday' | 'sunday'
+		weekStartIndex: weekdayIndex(getSettingOr(db, WEEK_START_KEY))
 	};
 };
 

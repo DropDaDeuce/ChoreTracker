@@ -2,6 +2,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { addDays, todayLocal } from './dates';
 import { choreAssignees, choreInstances, chores, users } from './db/schema';
 import type { DB } from './db/type';
+import { instanceWeight } from './payout';
 import { isHome } from './presence';
 import { nextOccurrence, occurrencesInRange, type Recurrence } from './recurrence';
 import { pickRotationAssignee, type Turn } from './rotation';
@@ -79,7 +80,15 @@ export function generateDueInstances(db: DB, today = todayLocal()): number {
 
 				const result = tx
 					.insert(choreInstances)
-					.values({ choreId: chore.id, assigneeId, dueDate })
+					.values({
+						choreId: chore.id,
+						assigneeId,
+						dueDate,
+						// Frozen now: retuning a chore's points mid-week must not
+						// move the denominator under a week already in progress.
+						weight: instanceWeight(chore.points),
+						isBonus: chore.isBonus
+					})
 					.onConflictDoNothing()
 					.run();
 

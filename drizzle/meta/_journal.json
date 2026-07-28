@@ -64,6 +64,27 @@
       "when": 1785198893920,
       "tag": "0008_drop_rotation_state",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1785199617406,
+      "tag": "0009_allowance_weight_and_goals",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1785199628818,
+      "tag": "0010_drop_per_chore_allowance",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1785199681598,
+      "tag": "0011_instance_bonus_points",
+      "breakpoints": true
     }
   ]
 }

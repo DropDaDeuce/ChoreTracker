@@ -1,9 +1,28 @@
 # Plan — Weekly allowance + point goals
 
+**STATUS: SHIPPED (2026-07-27).** The durable rules now live in `CLAUDE.md`
+(Core Architecture → Weekly allowance / Settlement / Point goals). This doc is
+kept only for the *reasoning* — why the divisor is what it is, which trade-offs
+were accepted, and what was deliberately not built. Delete it once that context
+stops being useful.
+
 Scope: replace per-chore money with a household weekly allowance apportioned by
-days and points, and add point goals. Decisions below are **settled** (Mathew,
-2026-07-27); this doc is the spec to build against, and it gets deleted once the
-work ships and `CLAUDE.md` carries the durable rules.
+days and points, and add point goals. Decisions below were **settled** by Mathew
+on 2026-07-27.
+
+Deviations from this plan during the build, and why:
+
+* **No `users.weekly_allowance_cents` column.** The allowance turned out to be
+  one household-wide setting, not per person — so there was nothing to store on
+  the user.
+* **Bonuses settle with the week** rather than paying on verification, so there
+  is one payment path and one rate instead of two.
+* **Library templates lost their points entirely.** They carried a 5/10/15–25
+  effort scale which would have dominated day splits against the 1/3/5/7
+  frequency scale; weight now derives from frequency for both.
+* **A settled week became fully frozen** (`assertWeekOpen`). Not in the original
+  spec, but "settled weeks are final" is unenforceable if the chores underneath
+  can still change.
 
 Companion work already landed: least-recently-served rotation (see the Done log
 in `ToDo.md`).
@@ -159,12 +178,12 @@ Settled:
 
 ## Build order
 
-1. ~~Least-recently-served rotation~~ — done.
-2. Week-start widening + `chore_instances.weight` + points-from-frequency
-   defaults. Groundwork, no behavior change visible yet.
-3. Allowance engine + settlement cron + `weekly_settlements`, with unit tests
-   covering the divisor, rounding, away weeks, and the reminder factors.
-4. Money UI: drop per-chore allowance everywhere, add the live week card and
-   the settings fields. Privacy audit lands here.
-5. Bonus chores + ad-hoc bonuses.
-6. Point goals.
+1. ~~Least-recently-served rotation~~
+2. ~~Week-start widening + `chore_instances.weight` + points-from-frequency defaults~~
+3. ~~Allowance engine + settlement cron + `weekly_settlements`~~
+4. ~~Money UI + privacy audit~~
+5. ~~Bonus chores + ad-hoc bonuses~~
+6. ~~Point goals~~
+
+All shipped. Follow-ups that fell out of the work and now live in `ToDo.md`:
+PIN throttling, one-off chores, time-of-day windows, activity feed.

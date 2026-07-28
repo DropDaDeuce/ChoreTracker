@@ -8,6 +8,7 @@ import {
 import { todayLocal } from '$lib/server/dates';
 import { db } from '$lib/server/db';
 import { choreInstances, chores, rooms, users } from '$lib/server/db/schema';
+import { goalsFor } from '$lib/server/goals';
 import { isHome } from '$lib/server/presence';
 import { currentStreak } from '$lib/server/stats';
 import { fail, redirect } from '@sveltejs/kit';
@@ -76,7 +77,11 @@ export const load: PageServerLoad = ({ locals }) => {
 			...forUser(person.id),
 			away: !isHome(db, person.id, today),
 			streak: currentStreak(db, person.id, today)
-		}))
+		})),
+		// Family goals only. The board is a shared screen in a shared room, so
+		// it shows aggregate progress and no money at all — never an
+		// individual's earnings or ceiling.
+		familyGoals: goalsFor(db, null, today)
 	};
 };
 

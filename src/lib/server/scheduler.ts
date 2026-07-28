@@ -1,4 +1,5 @@
 import { schedule } from 'node-cron';
+import { settleDueWeeks } from './allowance';
 import { pruneBackups, writeBackupFile } from './backup';
 import { todayLocal } from './dates';
 import { db } from './db';
@@ -16,7 +17,12 @@ declare global {
  * server sleeps and reboots) and every night at 00:05:
  *   1. materialize upcoming chore instances
  *   2. sweep overdue pending instances to `missed`
- *   3. (nightly only) write an automatic backup + prune old ones
+ *   3. settle any allowance week that has closed and cleared its grace period
+ *   4. (nightly only) write an automatic backup + prune old ones
+ *
+ * The sweep runs BEFORE settlement so a week is only ever paid once its
+ * unfinished chores have been marked missed — otherwise they'd still look
+ * open and be counted as "still winnable" at the moment the week is closed.
  */
 export function startScheduler(): void {
 	if (globalThis.__choretrackerSchedulerStarted) return;
@@ -27,8 +33,12 @@ export function startScheduler(): void {
 			const today = todayLocal();
 			const created = generateDueInstances(db, today);
 			const missed = sweepOverdue(db, today);
-			if (created > 0 || missed > 0) {
-				console.log(`[scheduler] ${label}: created ${created}, marked ${missed} missed`);
+			const settled = settleDueWeeks(db, today);
+			if (created > 0 || missed > 0 || settled > 0) {
+				console.log(
+					`[scheduler] ${label}: created ${created}, marked ${missed} missed` +
+						(settled > 0 ? `, settled ${settled} allowance week(s)` : '')
+				);
 			}
 		} catch (err) {
 			console.error(`[scheduler] ${label} failed`, err);

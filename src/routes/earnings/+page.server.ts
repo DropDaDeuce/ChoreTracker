@@ -1,4 +1,14 @@
 import { requireAdult, requireUser } from '$lib/server/auth';
+import {
+	allowanceConfig,
+	computeHouseholdWeek,
+	isWeekSettled,
+	settleWeek,
+	settlementHistory,
+	weekStartFor,
+	type WeekResult
+} from '$lib/server/allowance';
+import { addDays, todayLocal } from '$lib/server/dates';
 import { db } from '$lib/server/db';
 import { allowanceLedger, choreInstances, chores, users } from '$lib/server/db/schema';
 import {
@@ -12,7 +22,11 @@ import { fail } from '@sveltejs/kit';
 import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
-function earningsFor(person: { id: number; name: string; avatarColor: string }) {
+function earningsFor(
+	person: { id: number; name: string; avatarColor: string },
+	week: WeekResult | null,
+	settled: boolean
+) {
 	const ledger = db
 		.select()
 		.from(allowanceLedger)
@@ -64,13 +78,23 @@ function earningsFor(person: { id: number; name: string; avatarColor: string }) 
 		ledger,
 		recentChores,
 		periodSince: lastPayout?.createdAt.toISOString().slice(0, 10) ?? null,
-		periodEarned: earnedThisPeriod?.total ?? 0
+		periodEarned: earnedThisPeriod?.total ?? 0,
+		week,
+		weekSettled: settled,
+		pastWeeks: settlementHistory(db, person.id)
 	};
 }
 
 export const load: PageServerLoad = ({ locals }) => {
 	const user = requireUser(locals);
+	const today = todayLocal();
+	const config = allowanceConfig(db);
+	const weekStart = weekStartFor(db, today, config);
+	const household = computeHouseholdWeek(db, weekStart, config);
 
+	// Adults see every kid; a kid sees only themself. This filter is the whole
+	// privacy story on this page — nobody but an adult may see another
+	// person's balance, ceiling or week.
 	const people =
 		user.role === 'adult'
 			? db
@@ -81,7 +105,26 @@ export const load: PageServerLoad = ({ locals }) => {
 					.all()
 			: [{ id: user.id, name: user.name, avatarColor: user.avatarColor }];
 
-	return { people: people.map(earningsFor), isAdult: user.role === 'adult' };
+	const settledIds = isWeekSettled(
+		db,
+		people.map((p) => p.id),
+		weekStart
+	);
+
+	return {
+		people: people.map((person) =>
+			earningsFor(
+				person,
+				household.people.find((p) => p.userId === person.id)?.week ?? null,
+				settledIds.has(person.id)
+			)
+		),
+		isAdult: user.role === 'adult',
+		weekStart,
+		// Only ever true once the week is genuinely over — an adult shouldn't be
+		// able to freeze a week that people are still working.
+		canSettle: user.role === 'adult' && today > addDays(weekStart, 6)
+	};
 };
 
 export const actions: Actions = {
@@ -96,6 +139,32 @@ export const actions: Actions = {
 			if (err instanceof InstanceActionError) return fail(400, { message: err.message });
 			throw err;
 		}
+	},
+
+	/**
+	 * Close and pay a finished week by hand, instead of waiting for the
+	 * nightly job. Only offered once the week is actually over — settling
+	 * freezes it, and a frozen week can't be marked done or verified again.
+	 */
+	settle: async ({ request, locals }) => {
+		const adult = requireAdult(locals);
+		const form = await request.formData();
+		const kidId = Number(form.get('kidId'));
+		const config = allowanceConfig(db);
+		const weekStart = weekStartFor(db, todayLocal(), config);
+		if (todayLocal() <= addDays(weekStart, 6)) {
+			return fail(400, { message: "That week isn't over yet." });
+		}
+		const household = computeHouseholdWeek(db, weekStart, config);
+		const result = settleWeek(db, kidId, weekStart, household, adult.id);
+		if (!result) return fail(400, { message: 'That week has already been paid.' });
+
+		notifyUser(db, kidId, {
+			title: '💰 Your week is in!',
+			body: 'Your allowance for the week has been added.',
+			url: '/earnings'
+		});
+		return { success: true };
 	},
 
 	adjust: async ({ request, locals }) => {

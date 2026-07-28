@@ -1,20 +1,51 @@
-import { eq, sql } from 'drizzle-orm';
-import { allowanceLedger, choreInstances, chores, reminders, users } from './db/schema';
-import type { DB } from './db/type';
-import { computePayoutCents, payoutReason } from './payout';
+import { and, eq, sql } from 'drizzle-orm';
+import { weekStartFor } from './allowance';
 import {
-	getSettingInt,
-	REMINDER_PENALTY_PERCENT_KEY,
-	UNDO_WINDOW_MINUTES_KEY
-} from './settings';
+	allowanceLedger,
+	choreInstances,
+	chores,
+	reminders,
+	users,
+	weeklySettlements
+} from './db/schema';
+import type { DB } from './db/type';
+import { getSettingInt, UNDO_WINDOW_MINUTES_KEY } from './settings';
 
 /**
  * Instance lifecycle: pending → done → verified | rejected.
  * All mutations validate the transition and throw Error with a user-facing
  * message on bad input; routes surface that via fail(400).
+ *
+ * Money is NOT written here any more. Verifying freezes the points and marks
+ * the chore approved; what it pays is only knowable once the week closes and
+ * the allowance is divided up (allowance.ts).
  */
 
 export class InstanceActionError extends Error {}
+
+/**
+ * A settled week is history. Once the allowance has been paid, changing what
+ * happened inside that week would mean the money on record no longer matches
+ * the chores on record — so the whole week freezes and adults correct with a
+ * bonus instead.
+ */
+function assertWeekOpen(db: DB, userId: number, dueDate: string): void {
+	const settled = db
+		.select({ id: weeklySettlements.id })
+		.from(weeklySettlements)
+		.where(
+			and(
+				eq(weeklySettlements.userId, userId),
+				eq(weeklySettlements.weekStart, weekStartFor(db, dueDate))
+			)
+		)
+		.get();
+	if (settled) {
+		throw new InstanceActionError(
+			"That week's allowance has already been paid — an adult can add a bonus instead."
+		);
+	}
+}
 
 function getInstanceWithChore(db: DB, instanceId: number) {
 	const row = db
@@ -47,6 +78,7 @@ export function markDone(
 	if (chore.requiresPhoto && !photoPath) {
 		throw new InstanceActionError('This chore needs a photo as proof.');
 	}
+	assertWeekOpen(db, instance.assigneeId, instance.dueDate);
 
 	db.transaction((tx) => {
 		tx.update(choreInstances)
@@ -71,6 +103,7 @@ export function undoMarkDone(db: DB, instanceId: number, actor: { id: number; ro
 	if (actor.id !== instance.assigneeId && actor.id !== instance.doneBy && actor.role !== 'adult') {
 		throw new InstanceActionError('Only the person who did it (or an adult) can undo.');
 	}
+	assertWeekOpen(db, instance.assigneeId, instance.dueDate);
 
 	const revert = {
 		status: 'pending' as const,
@@ -95,12 +128,10 @@ export function undoMarkDone(db: DB, instanceId: number, actor: { id: number; ro
 		if (windowMinutes <= 0 || Date.now() - verifiedAt >= windowMinutes * 60_000) {
 			throw new InstanceActionError('Too late to undo this one.');
 		}
-		db.transaction((tx) => {
-			// This unwinds a mistake, so the earning is deleted rather than
-			// compensated — the ledger should read as if it never happened.
-			tx.delete(allowanceLedger).where(eq(allowanceLedger.instanceId, instanceId)).run();
-			tx.update(choreInstances).set(revert).where(eq(choreInstances.id, instanceId)).run();
-		});
+		// No ledger to unwind: the week hasn't been settled (assertWeekOpen
+		// guarantees it), so this chore hasn't been paid yet — it simply stops
+		// counting toward the week in progress.
+		db.update(choreInstances).set(revert).where(eq(choreInstances.id, instanceId)).run();
 		return;
 	}
 
@@ -113,6 +144,7 @@ export function addReminder(db: DB, instanceId: number, adultId: number): void {
 	if (instance.status !== 'pending' && instance.status !== 'done') {
 		throw new InstanceActionError('Reminders only apply to open chores.');
 	}
+	assertWeekOpen(db, instance.assigneeId, instance.dueDate);
 	db.transaction((tx) => {
 		tx.insert(reminders).values({ instanceId, remindedBy: adultId }).run();
 		tx.update(choreInstances)
@@ -122,13 +154,31 @@ export function addReminder(db: DB, instanceId: number, adultId: number): void {
 	});
 }
 
-/** Adult approves a done chore: freezes the payout and writes the ledger. */
+/** Adult approves a done chore: freezes its points and counts it toward the week. */
 export function verifyInstance(db: DB, instanceId: number, adultId: number): void {
 	const { instance } = getInstanceWithChore(db, instanceId);
 	if (instance.status !== 'done') {
 		throw new InstanceActionError('Only chores marked done can be verified.');
 	}
+	assertWeekOpen(db, instance.assigneeId, instance.dueDate);
 	db.transaction((tx) => finalizeVerification(tx, instanceId, adultId));
+}
+
+/**
+ * Adult grants extra points on one occurrence — "you went above and beyond".
+ * Sets rather than adds, so a mistyped grant is corrected by entering the
+ * right number. Paid at the week's bonus rate when the week settles.
+ */
+export function grantBonusPoints(db: DB, instanceId: number, points: number): void {
+	if (!Number.isInteger(points) || points < 0 || points > 1000) {
+		throw new InstanceActionError('Bonus points must be a whole number up to 1000.');
+	}
+	const { instance } = getInstanceWithChore(db, instanceId);
+	assertWeekOpen(db, instance.assigneeId, instance.dueDate);
+	db.update(choreInstances)
+		.set({ bonusPoints: points })
+		.where(eq(choreInstances.id, instanceId))
+		.run();
 }
 
 /** Adult rejects a done chore: back to pending so it can be redone. */
@@ -137,6 +187,7 @@ export function rejectInstance(db: DB, instanceId: number, adultId: number, note
 	if (instance.status !== 'done') {
 		throw new InstanceActionError('Only chores marked done can be rejected.');
 	}
+	assertWeekOpen(db, instance.assigneeId, instance.dueDate);
 	db.update(choreInstances)
 		.set({
 			status: 'pending',
@@ -152,43 +203,26 @@ export function rejectInstance(db: DB, instanceId: number, adultId: number, note
 }
 
 /**
- * Shared by verifyInstance and no-verification markDone. Computes the payout
- * from the reminder count, freezes it on the instance, and — when there is
- * money to pay — appends an earning to the ledger.
+ * Shared by verifyInstance and no-verification markDone. Freezes the points
+ * and marks the chore approved.
+ *
+ * No money moves here. What this chore is worth depends on how the rest of
+ * the week turns out — how many days were worked, how the day it lives on is
+ * shared — so the cash is worked out and written once, when the week settles
+ * (allowance.ts). `payoutCents` is stamped at that point.
  */
 function finalizeVerification(tx: DB, instanceId: number, verifierId: number): void {
-	const { instance, chore } = getInstanceWithChore(tx, instanceId);
-	const penaltyPercent = getSettingInt(tx, REMINDER_PENALTY_PERCENT_KEY, 50);
-	const payoutCents = computePayoutCents(
-		chore.allowanceCents,
-		instance.reminderCount,
-		penaltyPercent
-	);
+	const { chore } = getInstanceWithChore(tx, instanceId);
 
 	tx.update(choreInstances)
 		.set({
 			status: 'verified',
 			verifiedAt: new Date(),
 			verifiedBy: verifierId,
-			payoutCents,
 			pointsAwarded: chore.points
 		})
 		.where(eq(choreInstances.id, instanceId))
 		.run();
-
-	if (payoutCents > 0) {
-		const reason = payoutReason(instance.reminderCount);
-		tx.insert(allowanceLedger)
-			.values({
-				userId: instance.assigneeId,
-				instanceId,
-				type: 'earning',
-				amountCents: payoutCents,
-				note: `${chore.title} (${instance.dueDate})${reason ? ` — ${reason}` : ''}`,
-				createdBy: verifierId
-			})
-			.run();
-	}
 }
 
 /** A user's allowance balance in cents (sum of their ledger). */

@@ -17,24 +17,42 @@ data leaving your house.
   through an ordered pool, one turn per occurrence.
 - **Mark done** — a simple, phone-friendly flow to check chores off, with an
   undo window for mistakes.
-- **Kids' allowance** — kids earn an allowance when they mark a chore done and
-  an adult verifies it. Getting reminded reduces the payout:
-  - No reminders → full allowance
-  - 1 reminder → half (percentage configurable)
-  - 2+ reminders → nothing for that chore
+- **Weekly allowance** — one allowance amount for the whole household, per
+  week. Everyone can earn the same; what changes it is how much of the week
+  they were actually around for:
+  - The busiest person's chore-days define a "full week" (or pin it yourself).
+  - The allowance divides by those days, so each chore-day is worth a fixed
+    slice — miss a day away from home and that slice simply isn't in your pot.
+  - Within a day, the day's value splits between that day's chores by points.
+    A day is worth the same whether it holds one chore or five, so the goal is
+    always "finish your day".
+  - Getting reminded shrinks what a chore claims: none → full, 1 → half
+    (configurable), 2+ → nothing.
+  - The week is paid out automatically a day after it ends, as a single
+    entry — or an adult can close it early.
+- **Bonus chores** — mark a chore as a bonus (or grant bonus points on a job
+  well done) and it earns on top of the week without ever counting against
+  anyone.
+- **Point goals** — set a star target for one kid or the whole family, daily
+  or weekly, with a reward you name ("movie night"). Hitting it is a
+  celebration, not money.
 - **Adult verification queue** — parents approve, reject, or add a reminder,
-  with a live payout preview.
-- **Earnings & payouts** — per-kid balance from an append-only ledger, with a
-  payout flow and history.
+  with a live preview of what each chore is worth this week.
+- **Earnings & payouts** — per-kid balance from an append-only ledger, a live
+  "this week" breakdown, past-week history, and a payout flow. Kids only ever
+  see their own figures — never a sibling's earnings or ceiling.
 - **Missed-chore sweep** — open chores past their due date (plus per-chore
   grace days) are marked missed automatically each night.
 - **Days at home** — for split households: each person gets a presence
   calendar (People → Days at home). Click days on/off or set repeating
   patterns ("away every other Thursday"); nobody is assigned chores on days
-  they're away, and rotations automatically skip to whoever's home.
+  they're away, rotations automatically hand the turn to whoever's home, and
+  the person who was away is first in line the day they're back.
 - **Profile + PIN login** — a kid-friendly profile picker, no usernames or
   passwords; adult-only actions are role-gated server-side.
-- **Settings** — currency symbol, reminder penalty %, undo window, week start.
+- **Settings** — weekly allowance, days in a full week, settlement grace,
+  currency symbol, reminder penalty %, undo window, and which day the week
+  starts on (any of the seven — a Sat–Fri allowance week is normal).
 - **Calendar** — month view color-coded per person, including planned future
   occurrences.
 - **Streaks & leaderboard** — completion streaks and weekly/monthly/all-time

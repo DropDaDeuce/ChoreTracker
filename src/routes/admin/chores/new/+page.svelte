@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import ChoreForm from '$lib/components/ChoreForm.svelte';
+	import { DEFAULT_POINTS } from '$lib/points';
 	import { submit } from '$lib/submit';
 
 	let { data, form } = $props();
@@ -73,7 +74,7 @@
 								{/if}
 							</span>
 							<span class="shrink-0 text-xs text-slate-400">
-								{FREQ_LABEL[template.frequency]} · ⭐ {template.points}
+								{FREQ_LABEL[template.frequency]} · ⭐ {DEFAULT_POINTS[template.frequency]}
 								{#if template.alreadyAdded}· added ✓{/if}
 							</span>
 						</label>
@@ -118,8 +119,8 @@
 				dayOfMonth: 1,
 				monthOfYear: 1,
 				startDate: data.today,
-				points: 0,
-				allowanceDollars: 0,
+				points: DEFAULT_POINTS.daily,
+				isBonus: false,
 				requiresVerification: true,
 				requiresPhoto: false,
 				graceDays: 0,

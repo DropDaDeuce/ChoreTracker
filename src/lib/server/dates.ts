@@ -49,11 +49,39 @@ export function daysInMonth(year: number, month: number): number {
 	return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
-/** Most recent Monday/Sunday on or before `date`. */
-export function startOfWeek(date: string, weekStart: 'monday' | 'sunday'): string {
-	const weekday = isoWeekday(date); // 0 = Monday … 6 = Sunday
-	const offset = weekStart === 'monday' ? weekday : (weekday + 1) % 7;
+/**
+ * Weekday names indexed like `isoWeekday`: 0 = Monday … 6 = Sunday.
+ * The week can start on ANY day — an allowance week that runs Saturday to
+ * Friday is a normal household choice, not an edge case.
+ */
+export const WEEKDAY_NAMES = [
+	'monday',
+	'tuesday',
+	'wednesday',
+	'thursday',
+	'friday',
+	'saturday',
+	'sunday'
+] as const;
+
+export type WeekdayName = (typeof WEEKDAY_NAMES)[number];
+
+/** Name → index, falling back to Monday for anything unrecognized. */
+export function weekdayIndex(name: string): number {
+	const index = WEEKDAY_NAMES.indexOf(name as WeekdayName);
+	return index === -1 ? 0 : index;
+}
+
+/** Most recent `weekStart` day on or before `date`. */
+export function startOfWeek(date: string, weekStart: WeekdayName | number): string {
+	const start = typeof weekStart === 'number' ? weekStart : weekdayIndex(weekStart);
+	const offset = (isoWeekday(date) - start + 7) % 7;
 	return addDays(date, -offset);
+}
+
+/** The last day of the week `date` falls in (start + 6). */
+export function endOfWeek(date: string, weekStart: WeekdayName | number): string {
+	return addDays(startOfWeek(date, weekStart), 6);
 }
 
 export function yearOf(date: string): number {

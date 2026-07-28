@@ -11,12 +11,13 @@ import {
 	markDone,
 	undoMarkDone
 } from '$lib/server/instances';
-import { computePayoutCents } from '$lib/server/payout';
 import {
-	getSettingInt,
-	REMINDER_PENALTY_PERCENT_KEY,
-	UNDO_WINDOW_MINUTES_KEY
-} from '$lib/server/settings';
+	allowanceConfig,
+	computeHouseholdWeek,
+	weekStartFor
+} from '$lib/server/allowance';
+import { claimNewAchievements, goalsFor } from '$lib/server/goals';
+import { getSettingInt, UNDO_WINDOW_MINUTES_KEY } from '$lib/server/settings';
 import { currentStreak } from '$lib/server/stats';
 import { deletePhoto, savePhoto, UploadError } from '$lib/server/uploads';
 import { fail } from '@sveltejs/kit';
@@ -37,17 +38,28 @@ export const load: PageServerLoad = ({ locals }) => {
 			.orderBy(asc(choreInstances.dueDate))
 			.all();
 
+	// This person's allowance week. A chore's "you'd earn X" is its slice of
+	// the day it lives on, so the preview comes out of the week rather than
+	// off the chore. Only THIS person's week is loaded into the page — no kid
+	// may learn what anyone else is earning.
+	const config = allowanceConfig(db);
+	const weekStart = weekStartFor(db, today, config);
+	const myWeek =
+		computeHouseholdWeek(db, weekStart, config).people.find((p) => p.userId === user.id)?.week ??
+		null;
+
+	const valueOf = new Map<number, number>();
+	for (const day of myWeek?.days ?? []) {
+		for (const chore of day.chores) valueOf.set(chore.id, chore.valueCents);
+	}
+	for (const chore of myWeek?.bonuses ?? []) valueOf.set(chore.id, chore.valueCents);
+
 	// payoutPreview powers the "you'd earn X" hint and the done-celebration.
-	const penaltyPercent = getSettingInt(db, REMINDER_PENALTY_PERCENT_KEY, 50);
 	const open = mine(
 		and(eq(choreInstances.status, 'pending'), lte(choreInstances.dueDate, today))
 	).map((row) => ({
 		...row,
-		payoutPreview: computePayoutCents(
-			row.chore.allowanceCents,
-			row.instance.reminderCount,
-			penaltyPercent
-		)
+		payoutPreview: valueOf.get(row.instance.id) ?? 0
 	}));
 	const awaiting = mine(eq(choreInstances.status, 'done'));
 	const upcoming = mine(
@@ -102,7 +114,9 @@ export const load: PageServerLoad = ({ locals }) => {
 		swaps: openSwapsFor(db, user.id),
 		swapPeople,
 		vapidPublicKey: getVapidPublicKey(db),
-		awayToday: !isHome(db, user.id, today)
+		awayToday: !isHome(db, user.id, today),
+		week: myWeek,
+		goals: goalsFor(db, user.id, today)
 	};
 };
 
@@ -128,6 +142,17 @@ export const actions: Actions = {
 			throw err;
 		}
 		return { success: true };
+	},
+
+	/**
+	 * Record goals this person has just crossed and hand back the fresh ones
+	 * to celebrate. An action rather than part of `load` on purpose: a link
+	 * preload runs `load` speculatively, so claiming there would let a
+	 * hover-and-move-away swallow the celebration.
+	 */
+	claimGoals: async ({ locals }) => {
+		const user = requireUser(locals);
+		return { success: true, achievements: claimNewAchievements(db, user.id) };
 	},
 
 	undo: async ({ request, locals }) => {

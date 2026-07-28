@@ -1,0 +1,1 @@
+ALTER TABLE `chores` DROP COLUMN `allowance_cents`;
