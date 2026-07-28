@@ -78,7 +78,13 @@ export const chores = sqliteTable('chores', {
 	 * entirely — doing one adds money, skipping one costs nothing.
 	 */
 	isBonus: integer('is_bonus', { mode: 'boolean' }).notNull().default(false),
-	assignmentType: text('assignment_type', { enum: ['fixed', 'rotating'] })
+	/**
+	 * fixed    — one named person does it.
+	 * rotating — the pool takes turns, one person per occurrence.
+	 * everyone — EVERY person in the pool gets their own copy of it, every
+	 *            time it comes round ("clean your room").
+	 */
+	assignmentType: text('assignment_type', { enum: ['fixed', 'rotating', 'everyone'] })
 		.notNull()
 		.default('fixed'),
 	requiresVerification: integer('requires_verification', { mode: 'boolean' })
@@ -165,8 +171,18 @@ export const choreInstances = sqliteTable(
 			.$defaultFn(() => new Date())
 	},
 	(t) => [
-		// Idempotent generation guard: re-running the generator can never duplicate.
-		uniqueIndex('chore_instances_chore_due_unique').on(t.choreId, t.dueDate),
+		/**
+		 * Idempotent generation guard: re-running the generator can never
+		 * duplicate. The assignee is part of the key because an `everyone`
+		 * chore deliberately puts several people on the SAME date — one row
+		 * each. For fixed and rotating chores (one person per date) generation
+		 * enforces the narrower "one per date" rule itself; see generate.ts.
+		 */
+		uniqueIndex('chore_instances_chore_due_assignee_unique').on(
+			t.choreId,
+			t.dueDate,
+			t.assigneeId
+		),
 		index('chore_instances_assignee_status_idx').on(t.assigneeId, t.status),
 		index('chore_instances_status_due_idx').on(t.status, t.dueDate)
 	]

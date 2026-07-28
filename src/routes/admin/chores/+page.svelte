@@ -204,7 +204,13 @@
 								<p class="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-500">
 									<span>{describeRecurrence(chore)}</span>
 									{#if chore.assigneeNames.length > 0}
-										<span>👤 {chore.assigneeNames.join(' → ')}</span>
+										<!-- "→" reads as turn order; "+" as all at once. -->
+										<span>
+											👤 {chore.assigneeNames.join(
+												chore.assignmentType === 'rotating' ? ' → ' : ' + '
+											)}
+											{#if chore.assignmentType === 'everyone'}(each){/if}
+										</span>
 									{/if}
 									{#if chore.points > 0}<span>⭐ {chore.points}</span>{/if}
 									{#if chore.isBonus}

@@ -282,6 +282,36 @@ describe('presence-aware generation', () => {
 		expect(instancesOf(chore.id).find((r) => r.dueDate === '2026-07-22')?.assigneeId).toBe(kid.id);
 	});
 
+	it('an `everyone` chore skips whoever is away and still lands for the rest', () => {
+		const riley = insertUser(db, 'Riley', 'kid');
+		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false }, TODAY); // Sam away Thursdays
+		const chore = makeChore({ assignmentType: 'everyone' }, [kid.id, riley.id]);
+
+		generateDueInstances(db, TODAY);
+
+		const thursday = instancesOf(chore.id).filter((r) => r.dueDate === '2026-07-16');
+		expect(thursday).toHaveLength(1);
+		expect(thursday[0].assigneeId).toBe(riley.id); // nobody covers for Sam — it's his own room
+		// A normal day still lands for both.
+		expect(instancesOf(chore.id).filter((r) => r.dueDate === TODAY)).toHaveLength(2);
+	});
+
+	it('an `everyone` chore comes back for someone returning home', () => {
+		const riley = insertUser(db, 'Riley', 'kid');
+		const chore = makeChore({ assignmentType: 'everyone' }, [kid.id, riley.id]);
+		generateDueInstances(db, TODAY);
+
+		toggleDay(db, kid.id, '2026-07-17', TODAY); // Sam away Friday
+		expect(
+			instancesOf(chore.id).filter((r) => r.dueDate === '2026-07-17')
+		).toHaveLength(1);
+
+		toggleDay(db, kid.id, '2026-07-17', TODAY); // back home again
+		const friday = instancesOf(chore.id).filter((r) => r.dueDate === '2026-07-17');
+		expect(friday).toHaveLength(2);
+		expect(friday.map((r) => r.assigneeId).sort()).toEqual([kid.id, riley.id].sort());
+	});
+
 	it('rotation skips the day when the whole pool is away', () => {
 		const riley = insertUser(db, 'Riley', 'kid');
 		addRule(db, kid.id, { kind: 'weekly', weekday: 3, isHome: false }, TODAY);

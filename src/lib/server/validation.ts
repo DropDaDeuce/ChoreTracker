@@ -37,9 +37,10 @@ export const choreSchema = z
 		requiresVerification: z.boolean().default(true),
 		requiresPhoto: z.boolean().default(false),
 		graceDays: z.coerce.number().int().min(0).max(30).default(0),
-		assignmentType: z.enum(['fixed', 'rotating']).default('fixed'),
+		assignmentType: z.enum(['fixed', 'rotating', 'everyone']).default('fixed'),
 		/**
-		 * Ordered: position 0 first. Fixed assignment uses just the first entry.
+		 * Ordered: position 0 first. Fixed assignment uses just the first entry;
+		 * `everyone` uses them all at once (order is only display order).
 		 * Empty = unassigned: the chore exists but generation skips it until
 		 * someone takes it (lets you stock the house first, assign later).
 		 */

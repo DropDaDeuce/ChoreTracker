@@ -38,7 +38,7 @@
 		requiresVerification: boolean;
 		requiresPhoto: boolean;
 		graceDays: number;
-		assignmentType: 'fixed' | 'rotating';
+		assignmentType: 'fixed' | 'rotating' | 'everyone';
 		/** Ordered pool; for fixed assignment only the first entry is used. */
 		assigneeIds: number[];
 	}
@@ -297,6 +297,12 @@
 					Rotate turns
 				</span>
 			</label>
+			<label class="cursor-pointer">
+				<input type="radio" name="assignmentType" value="everyone" bind:group={assignmentType} class="peer sr-only" />
+				<span class="block rounded-full border border-slate-300 px-4 py-1.5 text-sm peer-checked:border-slate-800 peer-checked:bg-slate-800 peer-checked:text-white">
+					Everyone
+				</span>
+			</label>
 		</div>
 
 		{#if assignmentType === 'fixed'}
@@ -318,15 +324,27 @@
 				<input type="hidden" name="assigneeIds" value={id} />
 			{/each}
 			{#if pool.length === 0}
-				<p class="mb-2 text-sm text-slate-400">Nobody in the rotation yet — add at least two.</p>
+				<p class="mb-2 text-sm text-slate-400">
+					{#if assignmentType === 'everyone'}
+						Nobody picked yet — add everyone who should get this one.
+					{:else}
+						Nobody in the rotation yet — add at least two.
+					{/if}
+				</p>
 			{:else}
 				<ul class="mb-3 space-y-1.5">
 					{#each pool as id, i (id)}
 						<li class="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
-							<span class="w-5 text-xs font-semibold text-slate-400">{i + 1}.</span>
+							<!-- Order is the turn order for a rotation; for "everyone" it's
+							     just display order, so the reorder arrows would be noise. -->
+							{#if assignmentType === 'rotating'}
+								<span class="w-5 text-xs font-semibold text-slate-400">{i + 1}.</span>
+							{/if}
 							<span class="flex-1 font-medium text-slate-700">{nameOf(id)}</span>
-							<button type="button" class="h-9 w-9 rounded-lg text-slate-400 hover:text-slate-800 active:bg-slate-200 disabled:opacity-30" onclick={() => move(id, -1)} disabled={i === 0} aria-label="Move up">↑</button>
-							<button type="button" class="h-9 w-9 rounded-lg text-slate-400 hover:text-slate-800 active:bg-slate-200 disabled:opacity-30" onclick={() => move(id, 1)} disabled={i === pool.length - 1} aria-label="Move down">↓</button>
+							{#if assignmentType === 'rotating'}
+								<button type="button" class="h-9 w-9 rounded-lg text-slate-400 hover:text-slate-800 active:bg-slate-200 disabled:opacity-30" onclick={() => move(id, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+								<button type="button" class="h-9 w-9 rounded-lg text-slate-400 hover:text-slate-800 active:bg-slate-200 disabled:opacity-30" onclick={() => move(id, 1)} disabled={i === pool.length - 1} aria-label="Move down">↓</button>
+							{/if}
 							<button type="button" class="h-9 w-9 rounded-lg text-red-400 hover:text-red-600 active:bg-red-50" onclick={() => removeFromPool(id)} aria-label="Remove">✕</button>
 						</li>
 					{/each}
@@ -351,7 +369,12 @@
 				</div>
 			{/if}
 			<p class="mt-2 text-xs text-slate-400">
-				Turns go in this order, one per occurrence.
+				{#if assignmentType === 'everyone'}
+					Each of them gets their own copy, every time it comes round — good for
+					"clean your room". Anyone who's away that day just doesn't get one.
+				{:else}
+					Turns go in this order, one per occurrence.
+				{/if}
 			</p>
 		{/if}
 	</fieldset>

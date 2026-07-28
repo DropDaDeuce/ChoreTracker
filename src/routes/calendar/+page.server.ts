@@ -50,6 +50,12 @@ export const load: PageServerLoad = ({ locals, url }) => {
 		.all();
 
 	const materialized = new Set(instanceRows.map((r) => `${r.choreId}|${r.dueDate}`));
+	// `everyone` chores can be half-materialized at the edge of the rolling
+	// window — one person's row exists, another's doesn't yet — so they need
+	// per-person granularity rather than "is this date done".
+	const materializedSlots = new Set(
+		instanceRows.map((r) => `${r.choreId}|${r.dueDate}|${r.assigneeId}`)
+	);
 	for (const row of instanceRows) {
 		push(row.dueDate, {
 			title: row.title,
@@ -75,11 +81,26 @@ export const load: PageServerLoad = ({ locals, url }) => {
 
 		const from = first > today ? first : today;
 		for (const date of occurrencesInRange(chore, from, last)) {
-			if (materialized.has(`${chore.id}|${date}`)) continue;
-			const fixed = chore.assignmentType === 'fixed' ? pool[0] : null;
 			// Presence-aware, matching what generation will actually do: a fixed
 			// chore skips its person's away days; a rotation only vanishes when
-			// the whole pool is away.
+			// the whole pool is away; an `everyone` chore shows one entry per
+			// person who'll be home.
+			if (chore.assignmentType === 'everyone') {
+				for (const person of pool.filter((p) => isHome(db, p.userId, date))) {
+					if (materializedSlots.has(`${chore.id}|${date}|${person.userId}`)) continue;
+					push(date, {
+						title: chore.title,
+						color: person.color,
+						personName: person.name,
+						status: 'planned',
+						mine: person.userId === user.id
+					});
+				}
+				continue;
+			}
+
+			if (materialized.has(`${chore.id}|${date}`)) continue;
+			const fixed = chore.assignmentType === 'fixed' ? pool[0] : null;
 			if (fixed && !isHome(db, fixed.userId, date)) continue;
 			if (!fixed && !pool.some((p) => isHome(db, p.userId, date))) continue;
 			push(date, {

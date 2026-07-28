@@ -56,6 +56,8 @@
 								{chore.roomLabel} · {chore.frequency}
 								{#if chore.assignmentType === 'rotating'}
 									· rotates: {chore.poolNames.join(' → ')}
+								{:else if chore.assignmentType === 'everyone'}
+									· everyone: {chore.poolNames.join(' + ')}
 								{/if}
 							</p>
 						</div>
@@ -63,6 +65,7 @@
 							<input type="hidden" name="choreId" value={chore.id} />
 							<button class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 active:bg-red-50 active:text-red-600">
 								{chore.assignmentType === 'rotating' ? 'Leave rotation' : 'Unassign'}
+
 							</button>
 						</form>
 					</li>
@@ -90,7 +93,11 @@
 						{/each}
 						{#each data.available.filter((c) => !c.unassigned) as chore (chore.id)}
 							<option value={chore.id}>
-								{chore.icon} {chore.title} — {chore.roomLabel} ({chore.assignmentType === 'rotating' ? `rotates: ${chore.poolNames.join(' → ')}` : `now: ${chore.poolNames[0] ?? '?'}`})
+								{chore.icon} {chore.title} — {chore.roomLabel} ({chore.assignmentType === 'rotating'
+									? `rotates: ${chore.poolNames.join(' → ')}`
+									: chore.assignmentType === 'everyone'
+										? `everyone: ${chore.poolNames.join(' + ')}`
+										: `now: ${chore.poolNames[0] ?? '?'}`})
 							</option>
 						{/each}
 					</select>

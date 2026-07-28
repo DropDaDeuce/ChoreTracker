@@ -13,8 +13,11 @@ data leaving your house.
 
 - **Chores by frequency** — Daily (every N days), Weekly (any set of
   weekdays), Monthly, and Yearly chores, with a "My chores" view per person.
-- **Flexible assignment** — assign a chore to one person, or **rotate** it
-  through an ordered pool, one turn per occurrence.
+- **Flexible assignment** — three ways to hand out a chore: to **one person**,
+  **rotated** through an ordered pool (one turn per occurrence), or to
+  **everyone** at once, where each person gets their own copy every time it
+  comes round. That last one is for "clean your room" — one chore, not one per
+  kid, and anyone who's away that day simply doesn't get one.
 - **Mark done** — a simple, phone-friendly flow to check chores off, with an
   undo window for mistakes.
 - **Weekly allowance** — one allowance amount for the whole household, per

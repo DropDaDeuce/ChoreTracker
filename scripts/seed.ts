@@ -50,7 +50,8 @@ async function main() {
 	const demoRooms = [
 		{ name: 'Kitchen', icon: '🍳' },
 		{ name: 'Living room', icon: '🛋️' },
-		{ name: 'Bathroom', icon: '🛁' }
+		{ name: 'Bathroom', icon: '🛁' },
+		{ name: 'Bedroom', icon: '🛏️' }
 	];
 	const roomIds: Record<string, number> = {};
 	for (const [sortOrder, room] of demoRooms.entries()) {
@@ -121,6 +122,18 @@ async function main() {
 				requiresVerification: false
 			},
 			assignees: ['Alex']
+		},
+		{
+			values: {
+				title: 'Clean your room',
+				icon: '🛏️',
+				roomId: roomIds['Bedroom'],
+				frequency: 'daily',
+				points: 1,
+				// Not one kid's job on a rota — every kid, every day, their own room.
+				assignmentType: 'everyone'
+			},
+			assignees: ['Sam', 'Riley']
 		},
 		{
 			values: {

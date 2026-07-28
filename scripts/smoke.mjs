@@ -197,6 +197,32 @@ check('rotating chore create redirects', rotRes.status === 303);
 const choresList = await get('/admin/chores', alex);
 check('admin list shows rotation order Sam → Riley', choresList.body.includes('Sam → Riley'));
 
+// An "everyone" chore lands on every kid at once, not one at a time
+const everyoneRes = await post(
+	'/admin/chores/new?/custom',
+	{
+		title: 'Clean the playroom',
+		description: '',
+		frequency: 'daily',
+		interval: '1',
+		startDate: today,
+		points: '1',
+		graceDays: '0',
+		requiresVerification: 'on',
+		assignmentType: 'everyone',
+		assigneeIds: ['2', '3'] // Sam AND Riley
+	},
+	alex
+);
+check('everyone-chore create redirects', everyoneRes.status === 303);
+const rileyEarly = await login('3', '2222'); // the shared `riley` session is created later
+const samSees = await get('/dashboard', sam);
+const rileySees = await get('/dashboard', rileyEarly);
+check('everyone-chore reaches the first kid', samSees.body.includes('Clean the playroom'));
+check('everyone-chore reaches the second kid too', rileySees.body.includes('Clean the playroom'));
+const everyoneList = await get('/admin/chores', alex);
+check('admin list marks it as one-each', everyoneList.body.includes('Sam + Riley'));
+
 // Phase 2: rotation rejects a single-person pool
 const badRot = await post(
 	'/admin/chores/new?/custom',

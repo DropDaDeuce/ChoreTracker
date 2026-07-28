@@ -248,6 +248,37 @@ describe('the household divisor', () => {
 		expect(rileyWeek.ceilingCents).toBe(500); // away half of it
 	});
 
+	it('counts an `everyone` chore inside each person\'s own day', () => {
+		// "Clean your room" — both kids get their own copy on the same days, so
+		// it shouldn't skew the divisor or one kid's ceiling against the other.
+		const chore = db
+			.insert(chores)
+			.values({
+				title: 'Clean your room',
+				frequency: 'daily',
+				startDate: '2026-01-01',
+				assignmentType: 'everyone'
+			})
+			.returning()
+			.get();
+		for (const userId of [sam.id, riley.id]) {
+			db.insert(choreAssignees).values({ choreId: chore.id, userId, position: 0 }).run();
+			for (const dueDate of ['2026-07-11', '2026-07-12']) {
+				db.insert(choreInstances)
+					.values({ choreId: chore.id, assigneeId: userId, dueDate, status: 'verified', weight: 1 })
+					.run();
+			}
+		}
+
+		const household = computeHouseholdWeek(db, WEEK_START);
+
+		expect(household.fullWeekDays).toBe(2);
+		for (const person of household.people) {
+			expect(person.week.daysWorked).toBe(2);
+			expect(person.week.earnedCents).toBe(1000); // each earns their own full pot
+		}
+	});
+
 	it('honors a pinned full-week length', () => {
 		setSetting(db, FULL_WEEK_DAYS_KEY, '7');
 		giveChore(sam.id, ['2026-07-11', '2026-07-12', '2026-07-13', '2026-07-14']);

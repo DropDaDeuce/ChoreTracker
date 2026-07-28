@@ -27,7 +27,10 @@ export function choreColumnsFromInput(input: ChoreInput) {
 	};
 }
 
-/** Fixed assignment keeps only the first pick; rotation keeps the whole pool. */
+/**
+ * Fixed assignment keeps only the first pick; rotations and `everyone` chores
+ * keep the whole pool (turns for one, simultaneous copies for the other).
+ */
 function assigneeRows(choreId: number, input: ChoreInput) {
 	const ids = input.assignmentType === 'fixed' ? input.assigneeIds.slice(0, 1) : input.assigneeIds;
 	return ids.map((userId, position) => ({ choreId, userId, position }));

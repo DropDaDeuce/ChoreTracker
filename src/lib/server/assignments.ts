@@ -12,7 +12,7 @@ import { InstanceActionError } from './instances';
 
 /**
  * Add someone to a chore. Fixed chores get their (single) assignee replaced;
- * rotations append to the end of the pool.
+ * rotations and `everyone` chores append to the end of the pool.
  */
 export function addAssignee(db: DB, choreId: number, userId: number, today = todayLocal()): void {
 	db.transaction((tx) => {

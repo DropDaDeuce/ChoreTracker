@@ -19,11 +19,22 @@ export const load: PageServerLoad = ({ locals }) => {
 		.all();
 
 	const detailed = myChores.map(({ chore, room }) => {
+		// For a rotation, "next up" is genuinely whoever's turn it is — that's
+		// the useful thing to show. For an `everyone` chore the other copies
+		// aren't news, so show this person's own next one.
 		const nextUp = db
 			.select({ dueDate: choreInstances.dueDate, assigneeName: users.name, assigneeId: users.id })
 			.from(choreInstances)
 			.innerJoin(users, eq(choreInstances.assigneeId, users.id))
-			.where(and(eq(choreInstances.choreId, chore.id), eq(choreInstances.status, 'pending')))
+			.where(
+				and(
+					eq(choreInstances.choreId, chore.id),
+					eq(choreInstances.status, 'pending'),
+					...(chore.assignmentType === 'everyone'
+						? [eq(choreInstances.assigneeId, user.id)]
+						: [])
+				)
+			)
 			.orderBy(asc(choreInstances.dueDate))
 			.get();
 

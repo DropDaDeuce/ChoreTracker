@@ -119,6 +119,60 @@ describe('generateDueInstances', () => {
 		expect(instancesOf(chore.id).map((r) => `${r.dueDate}:${r.assigneeId}`)).toEqual(first);
 	});
 
+	it('gives an `everyone` chore to each person, every occurrence', () => {
+		const a = insertUser(db, 'Ana', 'kid');
+		const b = insertUser(db, 'Ben', 'kid');
+		const c = insertUser(db, 'Cal', 'kid');
+		const chore = insertChore({ assignmentType: 'everyone' }, [a.id, b.id, c.id]);
+
+		const created = generateDueInstances(db, TODAY);
+
+		// One row per person per day — not one row that takes turns.
+		expect(created).toBe(ROLLING_WINDOW_DAYS * 3);
+		const rows = instancesOf(chore.id);
+		const forToday = rows.filter((r) => r.dueDate === TODAY);
+		expect(forToday.map((r) => r.assigneeId).sort()).toEqual([a.id, b.id, c.id].sort());
+	});
+
+	it('re-running an `everyone` chore creates nothing new', () => {
+		const a = insertUser(db, 'Ana', 'kid');
+		const b = insertUser(db, 'Ben', 'kid');
+		const chore = insertChore({ assignmentType: 'everyone' }, [a.id, b.id]);
+
+		generateDueInstances(db, TODAY);
+		expect(generateDueInstances(db, TODAY)).toBe(0);
+		expect(instancesOf(chore.id)).toHaveLength(ROLLING_WINDOW_DAYS * 2);
+	});
+
+	it('backfills only the missing person when an `everyone` slot is freed', () => {
+		const a = insertUser(db, 'Ana', 'kid');
+		const b = insertUser(db, 'Ben', 'kid');
+		const chore = insertChore({ assignmentType: 'everyone' }, [a.id, b.id]);
+		generateDueInstances(db, TODAY);
+
+		const bensToday = instancesOf(chore.id).find(
+			(r) => r.dueDate === TODAY && r.assigneeId === b.id
+		)!;
+		db.delete(choreInstances).where(eq(choreInstances.id, bensToday.id)).run();
+
+		expect(generateDueInstances(db, TODAY)).toBe(1);
+		expect(instancesOf(chore.id).filter((r) => r.dueDate === TODAY)).toHaveLength(2);
+	});
+
+	it('adding someone to an `everyone` chore does not duplicate the others', () => {
+		const a = insertUser(db, 'Ana', 'kid');
+		const b = insertUser(db, 'Ben', 'kid');
+		const chore = insertChore({ assignmentType: 'everyone' }, [a.id]);
+		generateDueInstances(db, TODAY);
+		expect(instancesOf(chore.id)).toHaveLength(ROLLING_WINDOW_DAYS);
+
+		db.insert(choreAssignees).values({ choreId: chore.id, userId: b.id, position: 1 }).run();
+		const created = generateDueInstances(db, TODAY);
+
+		expect(created).toBe(ROLLING_WINDOW_DAYS); // Ben's copies only
+		expect(instancesOf(chore.id)).toHaveLength(ROLLING_WINDOW_DAYS * 2);
+	});
+
 	it('picks up the rotation where it left off when the window slides', () => {
 		const a = insertUser(db, 'Ana', 'kid');
 		const b = insertUser(db, 'Ben', 'kid');
